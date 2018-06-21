@@ -9,9 +9,7 @@ namespace Envoy {
 namespace Secret {
 
 /**
- * A manager for static secrets.
- *
- * TODO(jaebong) Support dynamic secrets.
+ * A manager for static and dynamic secrets.
  */
 class SecretManager {
 public:
@@ -31,19 +29,30 @@ public:
    * @param name a name of the Ssl::TlsCertificateConfig.
    * @return the TlsCertificate secret. Returns nullptr if the secret is not found.
    */
-  virtual const Ssl::TlsCertificateConfig* findTlsCertificate(const std::string& config_source_hash,
-                                                              const std::string& name) const PURE;
+  virtual const Ssl::TlsCertificateConfigSharedPtr
+  findTlsCertificate(const std::string& config_source_hash, const std::string& name) const PURE;
 
   /**
    * Add or update SDS config source. SecretManager starts downloading secrets from registered
    * config source.
    *
    * @param sdsConfigSource a protobuf message object contains SDS config source.
-   * @param config_name a name that uniquely refers to the SDS config source
-   * @return a hash string of normalized config source
+   * @param config_name a name that uniquely refers to the SDS config source.
+   * @return a hash string of normalized config source.
    */
   virtual std::string addOrUpdateSdsService(const envoy::api::v2::core::ConfigSource& config_source,
                                             std::string config_name) PURE;
+
+  /**
+   * Register callback function which is to be invoked on secret update.
+   *
+   * @param config_source_hash Hash code of ConfigSource.
+   * @param secret_name name of the secret.
+   * @param callback SecretCallbacks class.
+   */
+  virtual void registerTlsCertificateConfigCallbacks(const std::string& config_source_hash,
+                                                     const std::string& secret_name,
+                                                     SecretCallbacks& callback) PURE;
 };
 
 } // namespace Secret

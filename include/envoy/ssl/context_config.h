@@ -111,6 +111,17 @@ public:
    * @return The maximum TLS protocol version to negotiate.
    */
   virtual unsigned maxProtocolVersion() const PURE;
+
+  /**
+   * @return The hash code of SdsSecretConfig in std::string. If the SdsSecretConfig is empty, then
+   *         returns empty string.
+   */
+  virtual const std::string& sdsConfigSourceHash() const PURE;
+
+  /**
+   * @return The secret name in SdsSecretConfig. If SdsSecretConfig is empty, returns empty string.
+   */
+  virtual const std::string& sdsSecretName() const PURE;
 };
 
 class ClientContextConfig : public virtual ContextConfig {

@@ -14,6 +14,7 @@ public:
 
   const std::string& certificateChain() const override { return certificate_chain_; }
   const std::string& privateKey() const override { return private_key_; }
+  bool equalTo(const TlsCertificateConfig& secret) const override;
 
 private:
   const std::string certificate_chain_;

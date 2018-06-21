@@ -21,9 +21,15 @@ public:
    * @return a string of private key
    */
   virtual const std::string& privateKey() const PURE;
+
+  /**
+   * @return true if secret contains same certificate chain and private key.
+   *              Otherwise returns false.
+   */
+  virtual bool equalTo(const TlsCertificateConfig& secret) const PURE;
 };
 
-typedef std::unique_ptr<TlsCertificateConfig> TlsCertificateConfigPtr;
+typedef std::shared_ptr<const TlsCertificateConfig> TlsCertificateConfigSharedPtr;
 
 } // namespace Ssl
 } // namespace Envoy

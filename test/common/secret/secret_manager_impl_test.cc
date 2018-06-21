@@ -18,6 +18,7 @@ namespace {
 
 class MockServer : public Server::MockInstance {
 public:
+  Event::Dispatcher& dispatcher() override { return dispatcher_; }
   Init::Manager& initManager() { return initmanager_; }
 
 private:
@@ -27,7 +28,13 @@ private:
     void registerTarget(Init::Target&) override {}
   };
 
+  Event::DispatcherImpl dispatcher_;
   InitManager initmanager_;
+};
+
+class MockSecretCallback : public SecretCallbacks {
+public:
+  MOCK_METHOD0(onAddOrUpdateSecret, void());
 };
 
 class SecretManagerImplTest : public testing::Test {};
@@ -82,10 +89,17 @@ TEST_F(SecretManagerImplTest, SdsDynamicSecretUpdateSuccess) {
 
   MockServer server;
 
+  std::unique_ptr<MockSecretCallback> secret_callback(
+      new ::testing::NiceMock<MockSecretCallback>());
+  EXPECT_CALL(*secret_callback.get(), onAddOrUpdateSecret());
   std::string config_source_hash =
       server.secretManager().addOrUpdateSdsService(config_source, "abc_config");
 
+  server.secretManager().registerTlsCertificateConfigCallbacks(config_source_hash, "abc.com",
+                                                               *secret_callback.get());
   server.secretManager().addOrUpdateSecret(config_source_hash, secret_config);
+
+  server.dispatcher().run(Event::Dispatcher::RunType::Block);
 
   ASSERT_EQ(server.secretManager().findTlsCertificate(config_source_hash, "undefined"), nullptr);
 

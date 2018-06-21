@@ -82,7 +82,7 @@ TEST_F(SslContextImplTest, TestCipherSuites) {
   Json::ObjectSharedPtr loader = TestEnvironment::jsonLoadFromString(json);
   ClientContextConfigImpl cfg(*loader, server_.secretManager());
   Runtime::MockLoader runtime;
-  ContextManagerImpl manager(runtime);
+  ContextManagerImpl manager(runtime, server_.secretManager());
   Stats::IsolatedStoreImpl store;
   EXPECT_THROW(manager.createSslClientContext(store, cfg), EnvoyException);
 }
@@ -98,7 +98,7 @@ TEST_F(SslContextImplTest, TestExpiringCert) {
   Json::ObjectSharedPtr loader = TestEnvironment::jsonLoadFromString(json);
   ClientContextConfigImpl cfg(*loader, server_.secretManager());
   Runtime::MockLoader runtime;
-  ContextManagerImpl manager(runtime);
+  ContextManagerImpl manager(runtime, server_.secretManager());
   Stats::IsolatedStoreImpl store;
   ClientContextPtr context(manager.createSslClientContext(store, cfg));
 
@@ -121,7 +121,7 @@ TEST_F(SslContextImplTest, TestExpiredCert) {
   Json::ObjectSharedPtr loader = TestEnvironment::jsonLoadFromString(json);
   ClientContextConfigImpl cfg(*loader, server_.secretManager());
   Runtime::MockLoader runtime;
-  ContextManagerImpl manager(runtime);
+  ContextManagerImpl manager(runtime, server_.secretManager());
   Stats::IsolatedStoreImpl store;
   ClientContextPtr context(manager.createSslClientContext(store, cfg));
   EXPECT_EQ(0U, context->daysUntilFirstCertExpires());
@@ -139,7 +139,7 @@ TEST_F(SslContextImplTest, TestGetCertInformation) {
   Json::ObjectSharedPtr loader = TestEnvironment::jsonLoadFromString(json);
   ClientContextConfigImpl cfg(*loader, server_.secretManager());
   Runtime::MockLoader runtime;
-  ContextManagerImpl manager(runtime);
+  ContextManagerImpl manager(runtime, server_.secretManager());
   Stats::IsolatedStoreImpl store;
 
   ClientContextPtr context(manager.createSslClientContext(store, cfg));
@@ -165,7 +165,7 @@ TEST_F(SslContextImplTest, TestNoCert) {
   Json::ObjectSharedPtr loader = TestEnvironment::jsonLoadFromString("{}");
   ClientContextConfigImpl cfg(*loader, server_.secretManager());
   Runtime::MockLoader runtime;
-  ContextManagerImpl manager(runtime);
+  ContextManagerImpl manager(runtime, server_.secretManager());
   Stats::IsolatedStoreImpl store;
   ClientContextPtr context(manager.createSslClientContext(store, cfg));
   EXPECT_EQ("", context->getCaCertInformation());
@@ -177,7 +177,7 @@ public:
   static void loadConfig(ServerContextConfigImpl& cfg) {
     Runtime::MockLoader runtime;
     Secret::MockSecretManager secret_manager;
-    ContextManagerImpl manager(runtime);
+    ContextManagerImpl manager(runtime, server_.secretManager());
     Stats::IsolatedStoreImpl store;
     ServerContextPtr server_ctx(
         manager.createSslServerContext(store, cfg, std::vector<std::string>{}));
@@ -382,7 +382,7 @@ TEST(ClientContextConfigImplTest, InvalidCertificateHash) {
                                     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
   ClientContextConfigImpl client_context_config(tls_context, server.secretManager());
   Runtime::MockLoader runtime;
-  ContextManagerImpl manager(runtime);
+  ContextManagerImpl manager(runtime, server.secretManager());
   Stats::IsolatedStoreImpl store;
   EXPECT_THROW_WITH_REGEX(manager.createSslClientContext(store, client_context_config),
                           EnvoyException, "Invalid hex-encoded SHA-256 .*");
@@ -398,7 +398,7 @@ TEST(ClientContextConfigImplTest, InvalidCertificateSpki) {
       ->add_verify_certificate_spki("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
   ClientContextConfigImpl client_context_config(tls_context, server.secretManager());
   Runtime::MockLoader runtime;
-  ContextManagerImpl manager(runtime);
+  ContextManagerImpl manager(runtime, server.secretManager());
   Stats::IsolatedStoreImpl store;
   EXPECT_THROW_WITH_REGEX(manager.createSslClientContext(store, client_context_config),
                           EnvoyException, "Invalid base64-encoded SHA-256 .*");
@@ -524,7 +524,7 @@ TEST(ServerContextImplTest, TlsCertificateNonEmpty) {
   tls_context.mutable_common_tls_context()->add_tls_certificates();
   ServerContextConfigImpl client_context_config(tls_context, server.secretManager());
   Runtime::MockLoader runtime;
-  ContextManagerImpl manager(runtime);
+  ContextManagerImpl manager(runtime, server.secretManager());
   Stats::IsolatedStoreImpl store;
   EXPECT_THROW_WITH_MESSAGE(ServerContextPtr server_ctx(manager.createSslServerContext(
                                 store, client_context_config, std::vector<std::string>{})),
