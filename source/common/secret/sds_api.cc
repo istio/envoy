@@ -34,15 +34,30 @@ void SdsApi::initialize(std::function<void()> callback) {
 }
 
 void SdsApi::onConfigUpdate(const ResourceVector& resources, const std::string&) {
-  for (const auto& resource : resources) {
-    switch (resource.type_case()) {
-    case envoy::api::v2::auth::Secret::kTlsCertificate:
-      server_.secretManager().addOrUpdateSecret(sds_config_source_hash_, resource);
-      break;
-    case envoy::api::v2::auth::Secret::kSessionTicketKeys:
-      NOT_IMPLEMENTED;
-    default:
-      throw EnvoyException("sds: invalid configuration");
+  if (resources.empty()) {
+    ENVOY_LOG(debug, "Missing RouteConfiguration for {} in onConfigUpdate()", route_config_name_);
+    runInitializeCallbackIfAny();
+    return;
+  }
+  if (resources.size() != 1) {
+    throw EnvoyException(fmt::format("Unexpected RDS resource length: {}", resources.size()));
+  }
+  const auto& secret = resources[0];
+  MessageUtil::validate(secret);
+  // TODO(PiotrSikora): Remove this hack once fixed internally.
+  if (!(secret.name() == sds_config_name_)) {
+    throw EnvoyException(fmt::format("Unexpected RDS configuration (expecting {}): {}",
+				     sds_config_name_, secret.name()));
+  }
+  const uint64_t new_hash = MessageUtil::hash(secret);
+  if (new_hash != secret_hash_) 
+    if (secret.type_case() == envoy::api::v2::auth::Secret::TypeCase::kTlsCertificate) {
+      tls_certificate_secret_ =
+        std::make_shared<Ssl::TlsCertificateConfigImpl>(secret.tls_certificate());
+
+      for (auto cb : update_callbakcs_) {
+	cb->onAddOrUpdateSecret();
+      }
     }
   }
 

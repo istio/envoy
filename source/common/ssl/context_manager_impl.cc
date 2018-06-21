@@ -22,8 +22,7 @@ void ContextManagerImpl::releaseContext(Context* context) {
 
 ClientContextPtr ContextManagerImpl::createSslClientContext(Stats::Scope& scope,
                                                             const ClientContextConfig& config) {
-  if (!config.sdsConfigShourceHash().empty() && !config.sdsSecretName().empty() &&
-      config.certChain().empty() && config.privateKey().empty()) {
+  if (!config.isValid()) {
     return nullptr;
   }
 
@@ -51,8 +50,7 @@ ContextManagerImpl::updateSslClientContext(const Ssl::ClientContextPtr& client_c
 ServerContextPtr
 ContextManagerImpl::createSslServerContext(Stats::Scope& scope, const ServerContextConfig& config,
                                            const std::vector<std::string>& server_names) {
-  if (!config.sdsConfigShourceHash().empty() && !config.sdsSecretName().empty() &&
-      config.certChain().empty() && config.privateKey().empty()) {
+  if (!config.isValid()) {
     return nullptr;
   }
 

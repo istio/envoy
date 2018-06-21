@@ -54,8 +54,10 @@ public:
   unsigned minProtocolVersion() const override { return min_protocol_version_; };
   unsigned maxProtocolVersion() const override { return max_protocol_version_; };
 
-  const std::string& sdsConfigShourceHash() const override { return sds_config_source_hash_; }
-  const std::string& sdsSecretName() const override { return sds_secret_name_; }
+  bool isValid() const {
+    // either secret_provider_ is nullptr or secret_provider_->secret() is NOT nullptr.
+    return !secret_provider_ || secret_provider_->secret();
+  }
 
 protected:
   ContextConfigImpl(const envoy::api::v2::auth::CommonTlsContext& config,
@@ -70,8 +72,7 @@ private:
   static const std::string DEFAULT_ECDH_CURVES;
 
   Secret::SecretManager& secret_manager_;
-  const std::string sds_secret_name_;
-  const std::string sds_config_source_hash_;
+  Secret::DynamicSecretProviderSharedPtr secret_provider_;
   const std::string alpn_protocols_;
   const std::string alt_alpn_protocols_;
   const std::string cipher_suites_;

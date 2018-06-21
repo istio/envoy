@@ -16,51 +16,6 @@
 namespace Envoy {
 namespace Ssl {
 
-namespace {
-
-std::string readSdsSecretName(const envoy::api::v2::auth::CommonTlsContext& config) {
-  return (!config.tls_certificate_sds_secret_configs().empty())
-             ? config.tls_certificate_sds_secret_configs()[0].name()
-             : EMPTY_STRING;
-}
-
-std::string readConfigSourceHash(const envoy::api::v2::auth::CommonTlsContext& config,
-                                 Secret::SecretManager& secret_manager) {
-  return (!config.tls_certificate_sds_secret_configs().empty() &&
-          config.tls_certificate_sds_secret_configs()[0].has_sds_config())
-             ? secret_manager.addOrUpdateSdsService(
-                   config.tls_certificate_sds_secret_configs()[0].sds_config(),
-                   config.tls_certificate_sds_secret_configs()[0].name())
-             : EMPTY_STRING;
-}
-
-std::string readConfig(
-    const envoy::api::v2::auth::CommonTlsContext& config, Secret::SecretManager& secret_manager,
-    const std::string& config_source_hash, const std::string& secret_name,
-    const std::function<std::string(const envoy::api::v2::auth::TlsCertificate& tls_certificate)>&
-        read_inline_config,
-    const std::function<std::string(const Ssl::TlsCertificateConfig& secret)>&
-        read_managed_secret) {
-  if (!config.tls_certificates().empty()) {
-    return read_inline_config(config.tls_certificates()[0]);
-  } else if (!config.tls_certificate_sds_secret_configs().empty()) {
-    const auto secret = secret_manager.findTlsCertificate(config_source_hash, secret_name);
-    if (!secret) {
-      if (config_source_hash.empty()) {
-        throw EnvoyException(
-            fmt::format("Unknown static secret: {} : {}", config_source_hash, secret_name));
-      } else {
-        return EMPTY_STRING;
-      }
-    }
-    return read_managed_secret(*secret);
-  } else {
-    return EMPTY_STRING;
-  }
-}
-
-} // namespace
-
 const std::string ContextConfigImpl::DEFAULT_CIPHER_SUITES =
     "[ECDHE-ECDSA-AES128-GCM-SHA256|ECDHE-ECDSA-CHACHA20-POLY1305]:"
     "[ECDHE-RSA-AES128-GCM-SHA256|ECDHE-RSA-CHACHA20-POLY1305]:"
@@ -79,8 +34,7 @@ const std::string ContextConfigImpl::DEFAULT_ECDH_CURVES = "X25519:P-256";
 
 ContextConfigImpl::ContextConfigImpl(const envoy::api::v2::auth::CommonTlsContext& config,
                                      Secret::SecretManager& secret_manager)
-    : secret_manager_(secret_manager), sds_secret_name_(readSdsSecretName(config)),
-      sds_config_source_hash_(readConfigSourceHash(config, secret_manager)),
+    : secret_manager_(secret_manager),
       alpn_protocols_(RepeatedPtrUtil::join(config.alpn_protocols(), ",")),
       alt_alpn_protocols_(config.deprecated_v1().alt_alpn_protocols()),
       cipher_suites_(StringUtil::nonEmptyStringOrDefault(
@@ -93,26 +47,10 @@ ContextConfigImpl::ContextConfigImpl(const envoy::api::v2::auth::CommonTlsContex
           Config::DataSource::read(config.validation_context().crl(), true)),
       certificate_revocation_list_path_(
           Config::DataSource::getPath(config.validation_context().crl())),
-      cert_chain_(readConfig(
-          config, secret_manager, sds_config_source_hash_, sds_secret_name_,
-          [](const envoy::api::v2::auth::TlsCertificate& tls_certificate) -> std::string {
-            return Config::DataSource::read(tls_certificate.certificate_chain(), true);
-          },
-          [](const Ssl::TlsCertificateConfig& secret) -> std::string {
-            return secret.certificateChain();
-          })),
       cert_chain_path_(
           config.tls_certificates().empty()
               ? ""
               : Config::DataSource::getPath(config.tls_certificates()[0].certificate_chain())),
-      private_key_(readConfig(
-          config, secret_manager, sds_config_source_hash_, sds_secret_name_,
-          [](const envoy::api::v2::auth::TlsCertificate& tls_certificate) -> std::string {
-            return Config::DataSource::read(tls_certificate.private_key(), true);
-          },
-          [](const Ssl::TlsCertificateConfig& secret) -> std::string {
-            return secret.privateKey();
-          })),
       private_key_path_(
           config.tls_certificates().empty()
               ? ""
@@ -128,6 +66,9 @@ ContextConfigImpl::ContextConfigImpl(const envoy::api::v2::auth::CommonTlsContex
           tlsVersionFromProto(config.tls_params().tls_minimum_protocol_version(), TLS1_VERSION)),
       max_protocol_version_(
           tlsVersionFromProto(config.tls_params().tls_maximum_protocol_version(), TLS1_2_VERSION)) {
+  
+  readConfig(config);
+  
   if (ca_cert_.empty()) {
     if (!certificate_revocation_list_.empty()) {
       throw EnvoyException(fmt::format("Failed to load CRL from {} without trusted CA",
@@ -144,6 +85,35 @@ ContextConfigImpl::ContextConfigImpl(const envoy::api::v2::auth::CommonTlsContex
   }
 }
 
+std::string ContextConfigImpl::readConfig(
+					  const envoy::api::v2::auth::CommonTlsContext& config) {
+  if (!config.tls_certificates().empty()) {
+    cert_chain_ = Config::DataSource::read(config.tls_certificates()[0].certificate_chain(), true);
+    private_key_ = Config::DataSource::read(config.tls_certificates()[0].private_key(), true);
+    return;
+  }
+  if (!config.tls_certificate_sds_secret_configs().empty()) {
+    auto secret_name = config.tls_certificate_sds_secret_configs()[0].name();
+    if (!config.tls_certificate_sds_secret_configs()[0].has_sds_config()) {
+      // static secret
+      const auto secret = secret_manager.findStaticTlsCertificate(secret_name);
+      if (secret) {
+	cert_chain_ = secret->certificateChain();
+	private_key_ = secret->privateKey();
+	return;
+      } else {
+	throw EnvoyException(fmt::format("Unknown static secret: {}", secret_name));
+      }      
+    } else {
+      secret_provider_ = secret_manager.createDynamicSecretProvider(config.tls_certificate_sds_secret_configs()[0].sds_config()
+								    secret_name);
+      return;
+    }
+  }
+  throw EnvoyException(fmt::format("Unknown invalid config"));
+}
+
+  
 unsigned ContextConfigImpl::tlsVersionFromProto(
     const envoy::api::v2::auth::TlsParameters_TlsProtocol& version, unsigned default_version) {
   switch (version) {
@@ -165,29 +135,17 @@ unsigned ContextConfigImpl::tlsVersionFromProto(
 }
 
 const std::string& ContextConfigImpl::certChain() const {
-  if (!cert_chain_.empty()) {
-    return cert_chain_;
+  if (secret_provider_ && secret_provider_->secret()) {
+    return secret_provider_->secret()->certificateChain();
   }
-
-  auto secret = secret_manager_.findTlsCertificate(sds_config_source_hash_, sds_secret_name_);
-  if (!secret) {
-    return cert_chain_;
-  }
-
-  return secret->certificateChain();
+  return cert_chain_;
 }
 
 const std::string& ContextConfigImpl::privateKey() const {
-  if (!private_key_.empty()) {
-    return private_key_;
+  if (secret_provider_ && secret_provider_->secret()) {
+    return secret_provider_->secret()->privateKey();
   }
-
-  auto secret = secret_manager_.findTlsCertificate(sds_config_source_hash_, sds_secret_name_);
-  if (!secret) {
-    return private_key_;
-  }
-
-  return secret->privateKey();
+  return private_key_;
 }
 
 ClientContextConfigImpl::ClientContextConfigImpl(

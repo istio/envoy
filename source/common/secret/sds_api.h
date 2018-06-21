@@ -13,7 +13,9 @@ namespace Secret {
 /**
  * SDS API implementation that fetches secrets from SDS server via Subscription.
  */
-class SdsApi : public Init::Target, Config::SubscriptionCallbacks<envoy::api::v2::auth::Secret> {
+class SdsApi : public Init::Target,
+  public DynamicSecretProvider,
+  public Config::SubscriptionCallbacks<envoy::api::v2::auth::Secret> {
 public:
   SdsApi(Server::Instance& server, const envoy::api::v2::core::ConfigSource& sds_config,
          std::string sds_config_hash, std::string sds_config_name);
@@ -28,6 +30,17 @@ public:
     return MessageUtil::anyConvert<envoy::api::v2::auth::Secret>(resource).name();
   }
 
+  // DynamicSecretProvider
+  const Ssl::TlsCertificateConfigSharedPtr secret() const override {
+    return tls_certificate_secrets_;
+  }
+  void addUpdateCallback(SecretCallbacks& callback) override {
+    update_callbacks_.push_back(*callback);
+  }
+  void removeUpdateCallback(SecretCallbacks& callback) override {
+    update_callbacks_.remove(*callback);
+  }
+  
 private:
   void runInitializeCallbackIfAny();
 
@@ -37,6 +50,10 @@ private:
   std::unique_ptr<Config::Subscription<envoy::api::v2::auth::Secret>> subscription_;
   std::function<void()> initialize_callback_;
   std::string sds_config_name_;
+
+  std::string secret_hash_;
+  Ssl::TlsCertificateConfigSharedPtr tls_certificate_secrets_;
+  std::list<SecretCallbacks*> update_callbacks_;
 };
 
 typedef std::unique_ptr<SdsApi> SdsApiPtr;

@@ -376,7 +376,18 @@ std::string SslSocket::subjectLocalCertificate() const {
 ClientSslSocketFactory::ClientSslSocketFactory(const ClientContextConfig& config,
                                                Ssl::ContextManager& manager,
                                                Stats::Scope& stats_scope)
-    : ssl_ctx_(manager.createSslClientContext(stats_scope, config)) {}
+    : ssl_ctx_(manager.createSslClientContext(stats_scope, *config.get())),
+      config_(std::move(config)), manager_(manager), stats_scope_(stats_scope) {
+  if (config_) {
+    config_->addUpdateCallback(*this);
+  }
+}
+
+  ClientSslSocketFactory::~ClientSslSocketFactory() {
+    if (config_) {
+      config_->removeUpdateCallback(*this);
+    }
+  }
 
 Network::TransportSocketPtr ClientSslSocketFactory::createTransportSocket() const {
   return std::make_unique<Ssl::SslSocket>(*ssl_ctx_, Ssl::InitialState::Client);
@@ -388,7 +399,19 @@ ServerSslSocketFactory::ServerSslSocketFactory(const ServerContextConfig& config
                                                Ssl::ContextManager& manager,
                                                Stats::Scope& stats_scope,
                                                const std::vector<std::string>& server_names)
-    : ssl_ctx_(manager.createSslServerContext(stats_scope, config, server_names)) {}
+    : ssl_ctx_(manager.createSslServerContext(stats_scope, *config.get(), server_names)),
+      config_(std::move(config)), manager_(manager), stats_scope_(stats_scope),
+      server_names_(server_names) {
+  if (config_) {
+    config_->addUpdateCallback(*this);
+  }
+}
+
+  ServerSslSocketFactory::~ServerSslSocketFactory() {
+    if (config_) {
+      config_->removeUpdateCallback(*this);
+    }
+  }
 
 Network::TransportSocketPtr ServerSslSocketFactory::createTransportSocket() const {
   return std::make_unique<Ssl::SslSocket>(*ssl_ctx_, Ssl::InitialState::Server);
