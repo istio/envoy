@@ -23,10 +23,7 @@ void SdsApi::initialize(std::function<void()> callback) {
       sds_config_, server_.localInfo().node(), server_.dispatcher(), server_.clusterManager(),
       server_.random(), server_.stats(), /* rest_legacy_constructor */ nullptr,
       "envoy.service.discovery.v2.SecretDiscoveryService.FetchSecrets",
-      // TODO(jaebong): replace next line with
-      // "envoy.service.discovery.v2.SecretDiscoveryService.StreamSecrets" to support streaming
-      // service
-      "envoy.service.discovery.v2.SecretDiscoveryService.FetchSecrets");
+      "envoy.service.discovery.v2.SecretDiscoveryService.StreamSecrets");
 
   Config::Utility::checkLocalInfo("sds", server_.localInfo());
 

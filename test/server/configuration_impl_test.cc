@@ -329,12 +329,12 @@ TEST_F(ConfigurationImplTest, StaticSecretRead) {
   name: "abc.com"
   tls_certificate:
     certificate_chain:
-      filename: "test/config/integration/certs/cacert.pem"
+      filename: "{{ test_rundir }}/test/config/integration/certs/cacert.pem"
     private_key:
-      filename: "test/config/integration/certs/cakey.pem"
+      filename: "{{ test_rundir }}/test/config/integration/certs/cakey.pem"
   )EOF";
 
-  MessageUtil::loadFromYaml(yaml, *secret_config);
+  MessageUtil::loadFromYaml(TestEnvironment::substitute(yaml), *secret_config);
 
   MainImpl config;
   config.initialize(bootstrap, server_, cluster_manager_factory_);
@@ -343,10 +343,12 @@ TEST_F(ConfigurationImplTest, StaticSecretRead) {
 
   ASSERT_NE(secret, nullptr);
 
-  EXPECT_EQ(TestEnvironment::readFileToStringForTest("test/config/integration/certs/cacert.pem"),
+  const std::string cert_pem = "{{ test_rundir }}/test/config/integration/certs/cacert.pem";
+  EXPECT_EQ(TestEnvironment::readFileToStringForTest(TestEnvironment::substitute(cert_pem)),
             secret->certificateChain());
 
-  EXPECT_EQ(TestEnvironment::readFileToStringForTest("test/config/integration/certs/cakey.pem"),
+  const std::string key_pem = "{{ test_rundir }}/test/config/integration/certs/cakey.pem";
+  EXPECT_EQ(TestEnvironment::readFileToStringForTest(TestEnvironment::substitute(key_pem)),
             secret->privateKey());
 }
 
