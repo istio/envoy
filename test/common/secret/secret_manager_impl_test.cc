@@ -70,15 +70,15 @@ TEST_F(SecretManagerImplTest, SdsDynamicSecretUpdateSuccess) {
 
   std::string yaml =
       R"EOF(
-  name: "abc.com"
-  tls_certificate:
-    certificate_chain:
-      filename: "test/common/ssl/test_data/selfsigned_cert.pem"
-    private_key:
-      filename: "test/common/ssl/test_data/selfsigned_key.pem"
+name: "abc.com"
+tls_certificate:
+  certificate_chain:
+    filename: "{{ test_rundir }}/test/common/ssl/test_data/selfsigned_cert.pem"
+  private_key:
+    filename: "{{ test_rundir }}/test/common/ssl/test_data/selfsigned_key.pem"
   )EOF";
 
-  MessageUtil::loadFromYaml(yaml, secret_config);
+  MessageUtil::loadFromYaml(TestEnvironment::substitute(yaml), secret_config);
 
   MockServer server;
 
@@ -90,12 +90,13 @@ TEST_F(SecretManagerImplTest, SdsDynamicSecretUpdateSuccess) {
   ASSERT_EQ(server.secretManager().findTlsCertificate(config_source_hash, "undefined"), nullptr);
 
   const std::string cert_pem = "{{ test_rundir }}/test/common/ssl/test_data/selfsigned_cert.pem";
-  EXPECT_EQ(TestEnvironment::readFileToStringForTest(TestEnvironment::substitute(cert_pem)),
-            server.secretManager().findTlsCertificate("", "abc.com")->certificateChain());
+  EXPECT_EQ(
+      TestEnvironment::readFileToStringForTest(TestEnvironment::substitute(cert_pem)),
+      server.secretManager().findTlsCertificate(config_source_hash, "abc.com")->certificateChain());
 
   const std::string key_pem = "{{ test_rundir }}/test/common/ssl/test_data/selfsigned_key.pem";
   EXPECT_EQ(TestEnvironment::readFileToStringForTest(TestEnvironment::substitute(key_pem)),
-            server.secretManager().findTlsCertificate("", "abc.com")->privateKey());
+            server.secretManager().findTlsCertificate(config_source_hash, "abc.com")->privateKey());
 }
 
 TEST_F(SecretManagerImplTest, NotImplementedException) {
