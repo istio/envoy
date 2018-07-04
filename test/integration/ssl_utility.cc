@@ -60,10 +60,11 @@ createClientSslTransportSocketFactory(bool alpn, bool san, ContextManager& conte
   }
   Server::MockInstance server;
   Json::ObjectSharedPtr loader = TestEnvironment::jsonLoadFromString(target);
-  ClientContextConfigImpl cfg(*loader, server.secretManager());
+  ClientContextConfigPtr cfg =
+      std::make_unique<ClientContextConfigImpl>(*loader, server.secretManager());
   static auto* client_stats_store = new Stats::TestIsolatedStoreImpl();
   return Network::TransportSocketFactoryPtr{
-      new Ssl::ClientSslSocketFactory(cfg, context_manager, *client_stats_store)};
+      new Ssl::ClientSslSocketFactory(std::move(cfg), context_manager, *client_stats_store)};
 }
 
 Network::Address::InstanceConstSharedPtr getSslAddress(const Network::Address::IpVersion& version,

@@ -16,8 +16,6 @@
 namespace Envoy {
 namespace Ssl {
 
-namespace {} // namespace
-
 const std::string ContextConfigImpl::DEFAULT_CIPHER_SUITES =
     "[ECDHE-ECDSA-AES128-GCM-SHA256|ECDHE-ECDSA-CHACHA20-POLY1305]:"
     "[ECDHE-RSA-AES128-GCM-SHA256|ECDHE-RSA-CHACHA20-POLY1305]:"
@@ -68,6 +66,7 @@ ContextConfigImpl::ContextConfigImpl(const envoy::api::v2::auth::CommonTlsContex
           tlsVersionFromProto(config.tls_params().tls_minimum_protocol_version(), TLS1_VERSION)),
       max_protocol_version_(
           tlsVersionFromProto(config.tls_params().tls_maximum_protocol_version(), TLS1_2_VERSION)) {
+
   readCertChainConfig(config);
 
   if (ca_cert_.empty()) {
@@ -93,10 +92,11 @@ void ContextConfigImpl::readCertChainConfig(const envoy::api::v2::auth::CommonTl
     return;
   }
   if (!config.tls_certificate_sds_secret_configs().empty()) {
-    auto secret_name = config.tls_certificate_sds_secret_configs()[0].name();
-    if (!config.tls_certificate_sds_secret_configs()[0].has_sds_config()) {
+    const auto& secret_config = config.tls_certificate_sds_secret_configs()[0];
+    const auto& secret_name = secret_config.name();
+    if (!secret_config.has_sds_config()) {
       // static secret
-      const auto secret = secret_manager_.findStaticTlsCertificate(secret_name);
+      const auto& secret = secret_manager_.findStaticTlsCertificate(secret_name);
       if (secret) {
         cert_chain_ = secret->certificateChain();
         private_key_ = secret->privateKey();
@@ -106,7 +106,7 @@ void ContextConfigImpl::readCertChainConfig(const envoy::api::v2::auth::CommonTl
       }
     } else {
       secret_provider_ = secret_manager_.findOrCreateDynamicSecretProvider(
-          config.tls_certificate_sds_secret_configs()[0].sds_config(), secret_name);
+        secret_config.sds_config(), secret_name);
       return;
     }
   }
@@ -136,7 +136,6 @@ const std::string& ContextConfigImpl::certChain() const {
   if (secret_provider_ && secret_provider_->secret()) {
     return secret_provider_->secret()->certificateChain();
   }
-
   return cert_chain_;
 }
 
@@ -144,7 +143,6 @@ const std::string& ContextConfigImpl::privateKey() const {
   if (secret_provider_ && secret_provider_->secret()) {
     return secret_provider_->secret()->privateKey();
   }
-
   return private_key_;
 }
 

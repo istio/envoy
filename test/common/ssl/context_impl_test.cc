@@ -621,7 +621,7 @@ TEST(ServerContextImplTest, TlsCertificateNonEmpty) {
   ContextManagerImpl manager(runtime);
   Stats::IsolatedStoreImpl store;
   EXPECT_THROW_WITH_MESSAGE(ServerContextSharedPtr server_ctx(manager.createSslServerContext(
-                                store, client_context_config, std::vector<std::string>{})),
+                                store, server_context_config, std::vector<std::string>{})),
                             EnvoyException,
                             "Server TlsCertificates must have a certificate specified");
 }

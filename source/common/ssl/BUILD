@@ -18,6 +18,7 @@ envoy_cc_library(
         ":context_lib",
         "//include/envoy/network:connection_interface",
         "//include/envoy/network:transport_socket_interface",
+        "//include/envoy/secret:secret_manager_interface",
         "//source/common/common:assert_lib",
         "//source/common/common:empty_string",
         "//source/common/common:minimal_logger_lib",

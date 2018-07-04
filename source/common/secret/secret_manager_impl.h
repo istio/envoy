@@ -18,6 +18,7 @@ public:
   SecretManagerImpl(Server::Instance& server) : server_(server) {}
 
   void addStaticSecret(const envoy::api::v2::auth::Secret& secret) override;
+
   const Ssl::TlsCertificateConfig* findStaticTlsCertificate(const std::string& name) const override;
 
   DynamicSecretProviderSharedPtr

@@ -17,7 +17,6 @@ envoy_cc_library(
         "//include/envoy/secret:secret_manager_interface",
         "//include/envoy/server:instance_interface",
         "//source/common/common:minimal_logger_lib",
-        "//source/common/ssl:tls_certificate_config_impl_lib",
         "@envoy_api//envoy/api/v2/auth:cert_cc",
     ],
 )
@@ -29,7 +28,6 @@ envoy_cc_library(
     deps = [
         "//include/envoy/config:subscription_interface",
         "//include/envoy/server:instance_interface",
-        "//source/common/common:minimal_logger_lib",
         "//source/common/config:resources_lib",
         "//source/common/config:subscription_factory_lib",
         "//source/common/ssl:tls_certificate_config_impl_lib",

@@ -51,9 +51,19 @@ void SdsApi::onConfigUpdate(const ResourceVector& resources, const std::string&)
   const uint64_t new_hash = MessageUtil::hash(secret);
   if (new_hash != secret_hash_ &&
       secret.type_case() == envoy::api::v2::auth::Secret::TypeCase::kTlsCertificate) {
-    tls_certificate_secrets_ =
-        std::make_unique<Ssl::TlsCertificateConfigImpl>(secret.tls_certificate());
     secret_hash_ = new_hash;
+    {
+      std::unique_lock<std::shared_timed_mutex> lhs(secret_mutex_);
+      tls_certificate_secrets_ =
+          std::make_unique<Ssl::TlsCertificateConfigImpl>(secret.tls_certificate());
+    }
+
+    {
+      std::shared_lock<std::shared_timed_mutex> lhs(update_callbacks_mutex_);
+      for (auto cb : update_callbacks_) {
+        cb->onAddOrUpdateSecret();
+      }
+    }
   }
 
   runInitializeCallbackIfAny();
