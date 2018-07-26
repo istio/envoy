@@ -32,9 +32,9 @@ const std::string ContextConfigImpl::DEFAULT_CIPHER_SUITES =
 
 const std::string ContextConfigImpl::DEFAULT_ECDH_CURVES = "X25519:P-256";
 
-ContextConfigImpl::ContextConfigImpl(const envoy::api::v2::auth::CommonTlsContext& config,
-                                     Secret::SecretManager& secret_manager,
-                                     Init::Manager& init_manager)
+ContextConfigImpl::ContextConfigImpl(
+    const envoy::api::v2::auth::CommonTlsContext& config, Secret::SecretManager& secret_manager,
+    Secret::DynamicTlsCertificateSecretProviderFactory& secret_provider_factory)
     : secret_manager_(secret_manager),
       alpn_protocols_(RepeatedPtrUtil::join(config.alpn_protocols(), ",")),
       alt_alpn_protocols_(config.deprecated_v1().alt_alpn_protocols()),
@@ -67,7 +67,7 @@ ContextConfigImpl::ContextConfigImpl(const envoy::api::v2::auth::CommonTlsContex
           tlsVersionFromProto(config.tls_params().tls_minimum_protocol_version(), TLS1_VERSION)),
       max_protocol_version_(
           tlsVersionFromProto(config.tls_params().tls_maximum_protocol_version(), TLS1_2_VERSION)) {
-  readCertChainConfig(config, init_manager);
+  readCertChainConfig(config, secret_provider_factory);
 
   if (ca_cert_.empty()) {
     if (!certificate_revocation_list_.empty()) {
@@ -85,8 +85,9 @@ ContextConfigImpl::ContextConfigImpl(const envoy::api::v2::auth::CommonTlsContex
   }
 }
 
-void ContextConfigImpl::readCertChainConfig(const envoy::api::v2::auth::CommonTlsContext& config,
-                                            Init::Manager& init_manager) {
+void ContextConfigImpl::readCertChainConfig(
+    const envoy::api::v2::auth::CommonTlsContext& config,
+    Secret::DynamicTlsCertificateSecretProviderFactory& secret_provider_factory) {
   if (!config.tls_certificates().empty()) {
     cert_chain_ = Config::DataSource::read(config.tls_certificates()[0].certificate_chain(), true);
     private_key_ = Config::DataSource::read(config.tls_certificates()[0].private_key(), true);
@@ -105,8 +106,8 @@ void ContextConfigImpl::readCertChainConfig(const envoy::api::v2::auth::CommonTl
         throw EnvoyException(fmt::format("Unknown static secret: {}", secret_name));
       }
     } else {
-      secret_provider_ = secret_manager_.findOrCreateDynamicTlsCertificateSecretProvider(
-          config.tls_certificate_sds_secret_configs()[0].sds_config(), secret_name, init_manager);
+      secret_provider_ = secret_provider_factory.findOrCreate(
+          config.tls_certificate_sds_secret_configs()[0].sds_config(), secret_name);
       return;
     }
   }
@@ -150,8 +151,8 @@ const std::string& ContextConfigImpl::privateKey() const {
 
 ClientContextConfigImpl::ClientContextConfigImpl(
     const envoy::api::v2::auth::UpstreamTlsContext& config, Secret::SecretManager& secret_manager,
-    Init::Manager& init_manager)
-    : ContextConfigImpl(config.common_tls_context(), secret_manager, init_manager),
+    Secret::DynamicTlsCertificateSecretProviderFactory& secret_provider_factory)
+    : ContextConfigImpl(config.common_tls_context(), secret_manager, secret_provider_factory),
       server_name_indication_(config.sni()), allow_renegotiation_(config.allow_renegotiation()) {
   // BoringSSL treats this as a C string, so embedded NULL characters will not
   // be handled correctly.
@@ -165,21 +166,21 @@ ClientContextConfigImpl::ClientContextConfigImpl(
   }
 }
 
-ClientContextConfigImpl::ClientContextConfigImpl(const Json::Object& config,
-                                                 Secret::SecretManager& secret_manager,
-                                                 Init::Manager& init_manager)
+ClientContextConfigImpl::ClientContextConfigImpl(
+    const Json::Object& config, Secret::SecretManager& secret_manager,
+    Secret::DynamicTlsCertificateSecretProviderFactory& secret_provider_factory)
     : ClientContextConfigImpl(
           [&config] {
             envoy::api::v2::auth::UpstreamTlsContext upstream_tls_context;
             Config::TlsContextJson::translateUpstreamTlsContext(config, upstream_tls_context);
             return upstream_tls_context;
           }(),
-          secret_manager, init_manager) {}
+          secret_manager, secret_provider_factory) {}
 
 ServerContextConfigImpl::ServerContextConfigImpl(
     const envoy::api::v2::auth::DownstreamTlsContext& config, Secret::SecretManager& secret_manager,
-    Init::Manager& init_manager)
-    : ContextConfigImpl(config.common_tls_context(), secret_manager, init_manager),
+    Secret::DynamicTlsCertificateSecretProviderFactory& secret_provider_factory)
+    : ContextConfigImpl(config.common_tls_context(), secret_manager, secret_provider_factory),
       require_client_certificate_(
           PROTOBUF_GET_WRAPPED_OR_DEFAULT(config, require_client_certificate, false)),
       session_ticket_keys_([&config] {
@@ -210,16 +211,16 @@ ServerContextConfigImpl::ServerContextConfigImpl(
   }
 }
 
-ServerContextConfigImpl::ServerContextConfigImpl(const Json::Object& config,
-                                                 Secret::SecretManager& secret_manager,
-                                                 Init::Manager& init_manager)
+ServerContextConfigImpl::ServerContextConfigImpl(
+    const Json::Object& config, Secret::SecretManager& secret_manager,
+    Secret::DynamicTlsCertificateSecretProviderFactory& secret_provider_factory)
     : ServerContextConfigImpl(
           [&config] {
             envoy::api::v2::auth::DownstreamTlsContext downstream_tls_context;
             Config::TlsContextJson::translateDownstreamTlsContext(config, downstream_tls_context);
             return downstream_tls_context;
           }(),
-          secret_manager, init_manager) {}
+          secret_manager, secret_provider_factory) {}
 
 // Append a SessionTicketKey to keys, initializing it with key_data.
 // Throws if key_data is invalid.

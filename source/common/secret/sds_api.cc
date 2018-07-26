@@ -12,22 +12,26 @@
 namespace Envoy {
 namespace Secret {
 
-SdsApi::SdsApi(Server::Instance& server, Init::Manager& init_manager,
+SdsApi::SdsApi(const LocalInfo::LocalInfo& local_info, Event::Dispatcher& dispatcher,
+               Runtime::RandomGenerator& random, Stats::Store& stats,
+               Upstream::ClusterManager& cluster_manager, Init::Manager& init_manager,
                const envoy::api::v2::core::ConfigSource& sds_config, std::string sds_config_name)
-    : server_(server), sds_config_(sds_config), sds_config_name_(sds_config_name), secret_hash_(0) {
+    : local_info_(local_info), dispatcher_(dispatcher), random_(random), stats_(stats),
+      cluster_manager_(cluster_manager), sds_config_(sds_config), sds_config_name_(sds_config_name),
+      secret_hash_(0) {
   init_manager.registerTarget(*this);
 }
 
 void SdsApi::initialize(std::function<void()> callback) {
   initialize_callback_ = callback;
+
   subscription_ = Envoy::Config::SubscriptionFactory::subscriptionFromConfigSource<
       envoy::api::v2::auth::Secret>(
-      sds_config_, server_.localInfo().node(), server_.dispatcher(), server_.clusterManager(),
-      server_.random(), server_.stats(), /* rest_legacy_constructor */ nullptr,
+      sds_config_, local_info_.node(), dispatcher_, cluster_manager_, random_, stats_,
+      /* rest_legacy_constructor */ nullptr,
       "envoy.service.discovery.v2.SecretDiscoveryService.FetchSecrets",
       "envoy.service.discovery.v2.SecretDiscoveryService.StreamSecrets");
-
-  Config::Utility::checkLocalInfo("sds", server_.localInfo());
+  Config::Utility::checkLocalInfo("sds", local_info_);
 
   subscription_->start({sds_config_name_}, *this);
 }

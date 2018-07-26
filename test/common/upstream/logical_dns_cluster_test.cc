@@ -11,6 +11,7 @@
 #include "test/mocks/common.h"
 #include "test/mocks/network/mocks.h"
 #include "test/mocks/runtime/mocks.h"
+#include "test/mocks/server/mocks.h"
 #include "test/mocks/ssl/mocks.h"
 #include "test/mocks/thread_local/mocks.h"
 #include "test/mocks/upstream/mocks.h"
@@ -21,6 +22,7 @@
 
 using testing::Invoke;
 using testing::NiceMock;
+using testing::ReturnRef;
 using testing::_;
 
 namespace Envoy {
@@ -31,9 +33,12 @@ public:
   void setup(const std::string& json) {
     resolve_timer_ = new Event::MockTimer(&dispatcher_);
     NiceMock<MockClusterManager> cm;
-    cluster_.reset(new LogicalDnsCluster(parseClusterFromJson(json), runtime_, stats_store_,
-                                         ssl_context_manager_, dns_resolver_, tls_, cm, dispatcher_,
-                                         false));
+    NiceMock<Server::Configuration::MockTransportSocketFactoryContext> factory_context;
+    Envoy::Stats::ScopePtr scope;
+    EXPECT_CALL(factory_context, clusterManager()).WillRepeatedly(ReturnRef(cm));
+    EXPECT_CALL(factory_context, stats()).WillRepeatedly(ReturnRef(stats_store_));
+    cluster_.reset(new LogicalDnsCluster(parseClusterFromJson(json), runtime_, dns_resolver_, tls_,
+                                         false, factory_context, std::move(scope)));
     cluster_->prioritySet().addMemberUpdateCb(
         [&](uint32_t, const HostVector&, const HostVector&) -> void {
           membership_updated_.ready();

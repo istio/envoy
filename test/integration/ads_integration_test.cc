@@ -114,7 +114,7 @@ public:
         TestEnvironment::runfilesPath("test/config/integration/certs/upstreamcert.pem"));
     tls_cert->mutable_private_key()->set_filename(
         TestEnvironment::runfilesPath("test/config/integration/certs/upstreamkey.pem"));
-    Ssl::ServerContextConfigImpl cfg(tls_context, secret_manager_, init_manager_);
+    Ssl::ServerContextConfigImpl cfg(tls_context, secret_manager_, secret_provider_factory_);
 
     static Stats::Scope* upstream_stats_store = new Stats::TestIsolatedStoreImpl();
     return std::make_unique<Ssl::ServerSslSocketFactory>(
@@ -294,7 +294,7 @@ public:
   Runtime::MockLoader runtime_;
   Ssl::ContextManagerImpl context_manager_{runtime_};
   FakeStreamPtr ads_stream_;
-  testing::NiceMock<Init::MockManager> init_manager_;
+  testing::NiceMock<Secret::MockDynamicTlsCertificateSecretProvider> secret_provider_factory_;
 };
 
 INSTANTIATE_TEST_CASE_P(IpVersionsClientType, AdsIntegrationTest, GRPC_CLIENT_INTEGRATION_PARAMS);

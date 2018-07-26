@@ -361,7 +361,9 @@ envoy_cc_library(
         "//source/common/network:utility_lib",
         "//source/common/protobuf",
         "//source/common/protobuf:utility_lib",
+        "//source/common/secret:dynamic_secret_provider_factory_impl_lib",
         "//source/extensions/transport_sockets:well_known_names",
+        "//source/server:transport_socket_config_lib",
         "@envoy_api//envoy/api/v2/core:base_cc",
     ],
 )
@@ -378,6 +380,7 @@ envoy_cc_library(
         "//include/envoy/local_info:local_info_interface",
         "//include/envoy/network:dns_interface",
         "//include/envoy/runtime:runtime_interface",
+        "//include/envoy/secret:dynamic_secret_provider_factory_interface",
         "//include/envoy/ssl:context_manager_interface",
         "//include/envoy/thread_local:thread_local_interface",
         "//include/envoy/upstream:cluster_manager_interface",

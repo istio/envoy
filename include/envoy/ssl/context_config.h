@@ -133,6 +133,8 @@ public:
   virtual bool allowRenegotiation() const PURE;
 };
 
+typedef std::unique_ptr<ClientContextConfig> ClientContextConfigPtr;
+
 class ServerContextConfig : public virtual ContextConfig {
 public:
   struct SessionTicketKey {
@@ -153,6 +155,8 @@ public:
    */
   virtual const std::vector<SessionTicketKey>& sessionTicketKeys() const PURE;
 };
+
+typedef std::unique_ptr<ServerContextConfig> ServerContextConfigPtr;
 
 } // namespace Ssl
 } // namespace Envoy

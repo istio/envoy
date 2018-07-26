@@ -412,7 +412,15 @@ public:
 
   MOCK_METHOD0(sslContextManager, Ssl::ContextManager&());
   MOCK_CONST_METHOD0(statsScope, Stats::Scope&());
-  MOCK_METHOD0(initManager, Init::Manager&());
+  MOCK_METHOD0(clusterManager, Upstream::ClusterManager&());
+  MOCK_METHOD0(secretManager, Secret::SecretManager&());
+  MOCK_METHOD0(local_info, const LocalInfo::LocalInfo&());
+  MOCK_METHOD0(dispatcher, Event::Dispatcher&());
+  MOCK_METHOD0(random, Envoy::Runtime::RandomGenerator&());
+  MOCK_METHOD0(stats, Stats::Store&());
+  MOCK_METHOD1(createDynamicTlsCertificateSecretProviderFactory, void(Init::Manager& init_manager));
+  MOCK_METHOD0(dynamicTlsCertificateSecretProviderFactory,
+               Secret::DynamicTlsCertificateSecretProviderFactory&());
 };
 
 class MockListenerFactoryContext : public virtual MockFactoryContext,

@@ -3,7 +3,6 @@
 #include <string>
 
 #include "envoy/api/v2/auth/cert.pb.h"
-#include "envoy/init/init.h"
 #include "envoy/secret/dynamic_secret_provider.h"
 #include "envoy/ssl/tls_certificate_config.h"
 
@@ -31,19 +30,27 @@ public:
   findStaticTlsCertificate(const std::string& name) const PURE;
 
   /**
-   * Finds and returns a secret provider associated to SDS config. Create a new one
+   * Finds and returns a secret provider associated to SDS config. Return nullptr
    * if such provider does not exist.
    *
    * @param config_source a protobuf message object contains SDS config source.
    * @param config_name a name that uniquely refers to the SDS config source.
-   * @param init_manager an init manager that is responsible for initializing newly created secret
-   * provider.
    * @return the dynamic tls certificate secret provider.
    */
   virtual DynamicTlsCertificateSecretProviderSharedPtr
-  findOrCreateDynamicTlsCertificateSecretProvider(
+  findDynamicTlsCertificateSecretProvider(const envoy::api::v2::core::ConfigSource& config_source,
+                                          const std::string& config_name) PURE;
+
+  /**
+   * Add new dynamic tls certificate secret provider into secret manager.
+   *
+   * @param config_source a protobuf message object contains SDS config source.
+   * @param config_name a name that uniquely refers to the SDS config source.
+   * @param provider the dynamic tls certificate secret provider to be added into secret manager.
+   */
+  virtual void setDynamicTlsCertificateSecretProvider(
       const envoy::api::v2::core::ConfigSource& config_source, const std::string& config_name,
-      Init::Manager& init_manager) PURE;
+      DynamicTlsCertificateSecretProviderSharedPtr provider) PURE;
 };
 
 } // namespace Secret

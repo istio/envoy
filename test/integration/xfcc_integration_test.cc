@@ -61,10 +61,12 @@ Network::TransportSocketFactoryPtr XfccIntegrationTest::createClientSslContext(b
     target = json_tls;
   }
   Json::ObjectSharedPtr loader = TestEnvironment::jsonLoadFromString(target);
+  Ssl::ClientContextConfigPtr cfg = std::make_unique<Ssl::ClientContextConfigImpl>(
+      *loader, server_.secretManager(), init_manager_);
   Ssl::ClientContextConfigImpl cfg(*loader, server_.secretManager(), init_manager_);
   static auto* client_stats_store = new Stats::TestIsolatedStoreImpl();
   return Network::TransportSocketFactoryPtr{
-      new Ssl::ClientSslSocketFactory(cfg, *context_manager_, *client_stats_store)};
+      new Ssl::ClientSslSocketFactory(std::move(cfg), *context_manager_, *client_stats_store)};
 }
 
 Network::TransportSocketFactoryPtr XfccIntegrationTest::createUpstreamSslContext() {
@@ -76,10 +78,11 @@ Network::TransportSocketFactoryPtr XfccIntegrationTest::createUpstreamSslContext
 )EOF";
 
   Json::ObjectSharedPtr loader = TestEnvironment::jsonLoadFromString(json);
-  Ssl::ServerContextConfigImpl cfg(*loader, server_.secretManager(), init_manager_);
+  Ssl::ServerContextConfigPtr cfg = std::make_unique<Ssl::ServerContextConfigImpl>(
+      *loader, server_.secretManager(), init_manager_);
   static Stats::Scope* upstream_stats_store = new Stats::TestIsolatedStoreImpl();
   return std::make_unique<Ssl::ServerSslSocketFactory>(
-      cfg, *context_manager_, *upstream_stats_store, std::vector<std::string>{});
+      std::move(cfg), *context_manager_, *upstream_stats_store, std::vector<std::string>{});
 }
 
 Network::ClientConnectionPtr XfccIntegrationTest::makeClientConnection() {

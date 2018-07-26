@@ -36,23 +36,32 @@ void SecretManagerImpl::removeDeletedSecretProvider() {
   }
 }
 
-DynamicTlsCertificateSecretProviderSharedPtr
-SecretManagerImpl::findOrCreateDynamicTlsCertificateSecretProvider(
-    const envoy::api::v2::core::ConfigSource& sds_config_source, const std::string& config_name,
-    Init::Manager& init_manager) {
+namespace {
+std::string getDynamicTlsCertificateSecretProviderHash(
+    const envoy::api::v2::core::ConfigSource& sds_config_source, const std::string& config_name) {
   auto hash = MessageUtil::hash(sds_config_source);
-  std::string map_key = std::to_string(hash) + config_name;
+  return std::to_string(hash) + config_name;
+}
+} // namespace
 
-  auto dynamic_secret_provider = dynamic_secret_providers_[map_key].lock();
-  if (!dynamic_secret_provider) {
-    dynamic_secret_provider =
-        std::make_shared<SdsApi>(server_, init_manager, sds_config_source, config_name);
-    dynamic_secret_providers_[map_key] = dynamic_secret_provider;
-  }
+DynamicTlsCertificateSecretProviderSharedPtr
+SecretManagerImpl::findDynamicTlsCertificateSecretProvider(
+    const envoy::api::v2::core::ConfigSource& sds_config_source, const std::string& config_name) {
+  std::string map_key = getDynamicTlsCertificateSecretProviderHash(sds_config_source, config_name);
 
   removeDeletedSecretProvider();
 
-  return dynamic_secret_provider;
+  return dynamic_secret_providers_[map_key].lock();
+}
+
+void SecretManagerImpl::setDynamicTlsCertificateSecretProvider(
+    const envoy::api::v2::core::ConfigSource& sds_config_source, const std::string& config_name,
+    DynamicTlsCertificateSecretProviderSharedPtr provider) {
+  std::string map_key = getDynamicTlsCertificateSecretProviderHash(sds_config_source, config_name);
+
+  dynamic_secret_providers_[map_key] = provider;
+
+  removeDeletedSecretProvider();
 }
 
 } // namespace Secret

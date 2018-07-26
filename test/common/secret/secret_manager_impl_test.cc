@@ -65,12 +65,15 @@ tls_certificate:
 }
 
 TEST_F(SecretManagerImplTest, SdsDynamicSecretUpdateSuccess) {
-  MockServer server;
+  NiceMock<Server::MockInstance> server;
   NiceMock<Init::MockManager> init_manager;
   envoy::api::v2::core::ConfigSource config_source;
   {
-    auto secret_provider = server.secretManager().findOrCreateDynamicTlsCertificateSecretProvider(
-        config_source, "abc.com", init_manager);
+    auto secret_provider = std::make_shared<Secret::SdsApi>(
+        server.localInfo(), server.dispatcher(), server.random(), server.stats(),
+        server.clusterManager(), init_manager, config_source, "abc.com");
+    server.secretManager().setDynamicTlsCertificateSecretProvider(config_source, "abc.com",
+                                                                  secret_provider);
 
     std::string yaml =
         R"EOF(
@@ -112,7 +115,7 @@ session_ticket_keys:
   MessageUtil::loadFromYaml(TestEnvironment::substitute(yaml), secret_config);
 
   MockServer server;
-  std::unique_ptr<SecretManager> secret_manager(new SecretManagerImpl(server));
+  std::unique_ptr<SecretManager> secret_manager(new SecretManagerImpl());
 
   EXPECT_THROW_WITH_MESSAGE(server.secretManager().addStaticSecret(secret_config), EnvoyException,
                             "Secret type not implemented");

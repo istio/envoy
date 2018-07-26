@@ -28,11 +28,24 @@ envoy_cc_library(
     hdrs = ["sds_api.h"],
     deps = [
         "//include/envoy/config:subscription_interface",
+        "//include/envoy/event:dispatcher_interface",
         "//include/envoy/init:init_interface",
-        "//include/envoy/server:instance_interface",
+        "//include/envoy/local_info:local_info_interface",
+        "//include/envoy/runtime:runtime_interface",
+        "//include/envoy/stats:stats_interface",
         "//source/common/config:resources_lib",
         "//source/common/config:subscription_factory_lib",
         "//source/common/protobuf:utility_lib",
         "//source/common/ssl:tls_certificate_config_impl_lib",
+    ],
+)
+
+envoy_cc_library(
+    name = "dynamic_secret_provider_factory_impl_lib",
+    hdrs = ["dynamic_secret_provider_factory_impl.h"],
+    deps = [
+        ":sds_api_lib",
+        "//include/envoy/init:init_interface",
+        "//include/envoy/secret:dynamic_secret_provider_factory_interface",
     ],
 )

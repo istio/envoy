@@ -1,5 +1,6 @@
 #pragma once
 
+#include "test/mocks/secret/mocks.h"
 #include "test/mocks/server/mocks.h"
 #include "test/test_common/environment.h"
 
@@ -13,6 +14,7 @@ public:
   }
 
   Server::MockInstance server_;
-  NiceMock<Init::MockManager> init_manager_;
+  testing::NiceMock<Secret::MockDynamicTlsCertificateSecretProviderFactory>
+      secret_provider_factory_;
 };
 } // namespace Envoy

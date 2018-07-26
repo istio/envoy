@@ -7,5 +7,13 @@ MockSecretManager::MockSecretManager() {}
 
 MockSecretManager::~MockSecretManager() {}
 
+MockDynamicTlsCertificateSecretProvider::MockDynamicTlsCertificateSecretProvider() {}
+
+MockDynamicTlsCertificateSecretProvider::~MockDynamicTlsCertificateSecretProvider() {}
+
+MockDynamicTlsCertificateSecretProviderFactory::MockDynamicTlsCertificateSecretProviderFactory() {}
+
+MockDynamicTlsCertificateSecretProviderFactory::~MockDynamicTlsCertificateSecretProviderFactory() {}
+
 } // namespace Secret
 } // namespace Envoy

@@ -216,6 +216,7 @@ envoy_cc_library(
         "//source/common/network:socket_option_factory_lib",
         "//source/common/network:utility_lib",
         "//source/common/protobuf:utility_lib",
+        "//source/common/secret:dynamic_secret_provider_factory_impl_lib",
         "//source/common/ssl:context_config_lib",
         "//source/extensions/filters/listener:well_known_names",
         "//source/extensions/filters/network:well_known_names",
@@ -340,5 +341,6 @@ envoy_cc_library(
     hdrs = ["transport_socket_config_impl.h"],
     deps = [
         "//include/envoy/server:transport_socket_config_interface",
+        "//source/common/secret:dynamic_secret_provider_factory_impl_lib",
     ],
 )
