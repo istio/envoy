@@ -7,13 +7,13 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using testing::_;
 using testing::Invoke;
 using testing::Return;
 using testing::ReturnNew;
 using testing::ReturnPointee;
 using testing::ReturnRef;
 using testing::SaveArg;
-using testing::_;
 
 namespace Envoy {
 namespace Server {
@@ -164,7 +164,9 @@ MockFactoryContext::MockFactoryContext() : singleton_manager_(new Singleton::Man
 
 MockFactoryContext::~MockFactoryContext() {}
 
-MockTransportSocketFactoryContext::MockTransportSocketFactoryContext() {}
+MockTransportSocketFactoryContext::MockTransportSocketFactoryContext()
+    : secret_manager_(new Secret::SecretManagerImpl()) {}
+
 MockTransportSocketFactoryContext::~MockTransportSocketFactoryContext() {}
 
 MockListenerFactoryContext::MockListenerFactoryContext() {}

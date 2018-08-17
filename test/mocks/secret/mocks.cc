@@ -2,8 +2,8 @@
 
 #include "common/secret/secret_provider_impl.h"
 
-using testing::Invoke;
 using testing::_;
+using testing::Invoke;
 
 namespace Envoy {
 namespace Secret {
@@ -16,6 +16,10 @@ MockSecretManager::MockSecretManager() {
 }
 
 MockSecretManager::~MockSecretManager() {}
+
+MockSecretCallbacks::MockSecretCallbacks() {}
+
+MockSecretCallbacks::~MockSecretCallbacks() {}
 
 } // namespace Secret
 } // namespace Envoy

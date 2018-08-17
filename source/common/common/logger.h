@@ -44,6 +44,7 @@ namespace Logger {
   FUNCTION(router)               \
   FUNCTION(runtime)              \
   FUNCTION(stats)                \
+  FUNCTION(secret)               \
   FUNCTION(testing)              \
   FUNCTION(thrift)               \
   FUNCTION(tracing)              \
@@ -240,7 +241,7 @@ protected:
   }
 };
 
-} // Logger
+} // namespace Logger
 
 // Convert the line macro to a string literal for concatenation in log macros.
 #define DO_STRINGIZE(x) STRINGIZE(x)

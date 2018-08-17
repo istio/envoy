@@ -12,10 +12,10 @@
 
 #include "gtest/gtest.h"
 
+using testing::_;
 using testing::Invoke;
 using testing::MatchesRegex;
 using testing::NiceMock;
-using testing::_;
 
 namespace Envoy {
 namespace {
@@ -383,8 +383,7 @@ void TcpProxySslIntegrationTest::setupConnections() {
   // Set up the SSl client.
   Network::Address::InstanceConstSharedPtr address =
       Ssl::getSslAddress(version_, lookupPort("tcp_proxy"));
-  context_ =
-      Ssl::createClientSslTransportSocketFactory(false, false, *context_manager_, secret_manager_);
+  context_ = Ssl::createClientSslTransportSocketFactory(false, false, *context_manager_);
   ssl_client_ =
       dispatcher_->createClientConnection(address, Network::Address::InstanceConstSharedPtr(),
                                           context_->createTransportSocket(), nullptr);
