@@ -5,6 +5,7 @@
 #include "envoy/event/dispatcher.h"
 #include "envoy/server/wasm.h"
 #include "envoy/thread_local/thread_local.h"
+#include "envoy/upstream/cluster_manager.h"
 
 #include "common/protobuf/protobuf.h"
 
@@ -15,6 +16,11 @@ namespace Configuration {
 class WasmFactoryContext {
 public:
   virtual ~WasmFactoryContext() {}
+
+  /**
+   * @return Upstream::ClusterManager& singleton for use by the entire server.
+   */
+  virtual Upstream::ClusterManager& clusterManager() PURE;
 
   /**
    * @return Event::Dispatcher& the main thread's dispatcher. This dispatcher should be used
