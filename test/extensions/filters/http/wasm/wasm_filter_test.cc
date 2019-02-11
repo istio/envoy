@@ -53,13 +53,12 @@ public:
     proto_config.mutable_vm_config()->mutable_code()->set_inline_bytes(code);
     Stats::IsolatedStoreImpl stats_store;
     Api::ApiPtr api = Api::createApiForTest(stats_store);
-    wasm_ = Extensions::Common::Wasm::createWasm(proto_config.id(), proto_config.vm_config(), *api);
-    wasm_->setClusterManager(cluster_manager_);
+    wasm_ = Extensions::Common::Wasm::createWasmUnique(proto_config.id(), proto_config.vm_config(),
+                                                       cluster_manager_, dispatcher_, *api);
   }
 
   void setupFilter() {
     wasm_->setGeneralContext(std::make_unique<TestFilter>(wasm_.get()));
-    ;
     filter_ = std::make_unique<TestFilter>(wasm_.get());
   }
 
