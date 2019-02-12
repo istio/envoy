@@ -232,7 +232,7 @@ TEST(WasmFactoryTest, MissingImport) {
   Stats::IsolatedStoreImpl stats_store;
   Api::ApiPtr api = Api::createApiForTest(stats_store);
   Server::Configuration::WasmFactoryContextImpl context(cluster_manager, dispatcher, tls, *api);
-  Server::WasmPtr wasm;
+  Server::WasmSharedPtr wasm;
   EXPECT_THROW_WITH_MESSAGE(
       wasm = factory->createWasm(config, context), Extensions::Common::Wasm::WasmException,
       "Failed to load WASM module due to a missing import: env.missing func (i32, i32, i32)->()");

@@ -1221,11 +1221,11 @@ std::unique_ptr<WasmVm> createWasmVm(absl::string_view wasm_vm) {
   }
 }
 
-static std::unique_ptr<Wasm> createWasmInternal(absl::string_view id,
-                                                const envoy::config::wasm::v2::VmConfig& vm_config,
-                                                Upstream::ClusterManager& cluster_manager,
-                                                Event::Dispatcher& dispatcher, Api::Api& api) {
-  auto wasm = std::make_unique<Wasm>(vm_config.vm(), id, vm_config.initial_configuration(),
+std::shared_ptr<Wasm> createWasm(absl::string_view id,
+                                 const envoy::config::wasm::v2::VmConfig& vm_config,
+                                 Upstream::ClusterManager& cluster_manager,
+                                 Event::Dispatcher& dispatcher, Api::Api& api) {
+  auto wasm = std::make_shared<Wasm>(vm_config.vm(), id, vm_config.initial_configuration(),
                                      cluster_manager, dispatcher);
   const auto& code = Config::DataSource::read(vm_config.code(), true, api);
   const auto& path = Config::DataSource::getPath(vm_config.code())
@@ -1238,20 +1238,6 @@ static std::unique_ptr<Wasm> createWasmInternal(absl::string_view id,
   }
   wasm->configure(vm_config.initial_configuration());
   return wasm;
-}
-
-std::shared_ptr<Wasm> createWasm(absl::string_view id,
-                                 const envoy::config::wasm::v2::VmConfig& vm_config,
-                                 Upstream::ClusterManager& cluster_manager,
-                                 Event::Dispatcher& dispatcher, Api::Api& api) {
-  return std::shared_ptr<Wasm>(createWasmInternal(id, vm_config, cluster_manager, dispatcher, api));
-}
-
-std::unique_ptr<Wasm> createWasmUnique(absl::string_view id,
-                                       const envoy::config::wasm::v2::VmConfig& vm_config,
-                                       Upstream::ClusterManager& cluster_manager,
-                                       Event::Dispatcher& dispatcher, Api::Api& api) {
-  return createWasmInternal(id, vm_config, cluster_manager, dispatcher, api);
 }
 
 std::shared_ptr<Wasm> createThreadLocalWasm(Wasm& base_wasm, absl::string_view configuration,

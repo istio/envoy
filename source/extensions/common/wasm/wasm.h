@@ -448,23 +448,20 @@ public:
   }
 };
 
-// Create a new WASM VM of the give type (e.g. "envoy.wasm.vm.wavm").
+// Create a new low-level WASM VM of the give type (e.g. "envoy.wasm.vm.wavm").
 std::unique_ptr<WasmVm> createWasmVm(absl::string_view vm);
 
-// Create a new Wasm VM not attached to any thread. Note: 'id' may be empty if this VM will not be
-// shared by APIs (e.g. HTTP Filter + AccessLog).
+// Create a high level Wasm VM with Envoy API support. Note: 'id' may be empty if this VM will not
+// be shared by APIs (e.g. HTTP Filter + AccessLog).
 std::shared_ptr<Wasm> createWasm(absl::string_view id,
                                  const envoy::config::wasm::v2::VmConfig& vm_config,
                                  Upstream::ClusterManager& cluster_manager,
                                  Event::Dispatcher& dispatcher, Api::Api& api);
-// This is required for the singleton service Wasm instance.
-std::unique_ptr<Wasm> createWasmUnique(absl::string_view id,
-                                       const envoy::config::wasm::v2::VmConfig& vm_config,
-                                       Upstream::ClusterManager& cluster_manager,
-                                       Event::Dispatcher& dispatcher, Api::Api& api);
+
 // Create a ThreadLocal VM from an existing VM (e.g. from createWasm() above).
 std::shared_ptr<Wasm> createThreadLocalWasm(Wasm& base_wasm, absl::string_view configuration,
                                             Event::Dispatcher& dispatcher);
+
 // Get an existing ThreadLocal VM matching 'id'.
 std::shared_ptr<Wasm> getThreadLocalWasm(absl::string_view id, absl::string_view configuration);
 
