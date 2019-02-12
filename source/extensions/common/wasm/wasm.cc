@@ -1051,7 +1051,11 @@ void Wasm::setTickPeriod(std::chrono::milliseconds tick_period) {
   bool was_running = timer_ && tick_period_.count() > 0;
   tick_period_ = tick_period;
   if (tick_ && tick_period_.count() > 0 && !was_running) {
-    timer_ = dispatcher_.createTimer([this]() { this->tickHandler(); });
+    timer_ = dispatcher_.createTimer([weak = std::weak_ptr<Wasm>(shared_from_this())]() {
+      auto shared = weak.lock();
+      if (shared)
+        shared->tickHandler();
+    });
     timer_->enableTimer(tick_period_);
   }
 }
