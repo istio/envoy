@@ -54,7 +54,7 @@ public:
    * @param config const ProtoBuf::Message& supplies the config for the resource monitor
    *        implementation.
    * @param context WasmFactoryContext& supplies the resource monitor's context.
-   * @return WasmSharedPtr a singleton Wasm servive. May be be nullptr if per silo.
+   * @return WasmSharedPtr a singleton Wasm service. May be be nullptr if per silo.
    * @throw EnvoyException if the implementation is unable to produce an instance with
    *        the provided parameters.
    */
