@@ -79,7 +79,7 @@ TEST(WasmTest, Segv) {
   Upstream::MockClusterManager cluster_manager;
   Event::SimulatedTimeSystem time_system;
   Event::DispatcherImpl dispatcher(time_system, *api);
-  auto wasm = std::make_unique<Extensions::Common::Wasm::Wasm>("envoy.wasm.vm.wavm", "", "",
+  auto wasm = std::make_shared<Extensions::Common::Wasm::Wasm>("envoy.wasm.vm.wavm", "", "",
                                                                cluster_manager, dispatcher);
   EXPECT_NE(wasm, nullptr);
   const auto code = TestEnvironment::readFileToStringForTest(TestEnvironment::substitute(

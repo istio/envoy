@@ -442,7 +442,6 @@ uint32_t httpCallHandler(void* raw_context, uint32_t uri_ptr, uint32_t uri_size,
 uint32_t getTotalMemoryHandler(void*) { return 0x7FFFFFFF; }
 uint32_t _emscripten_get_heap_sizeHandler(void*) { return 0x7FFFFFFF; }
 void _llvm_trapHandler(void*) {
-  std::cerr << "llvm_trapHandler";
   throw WasmException("emscripten llvm_trap");
 }
 
