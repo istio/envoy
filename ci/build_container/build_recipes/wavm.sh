@@ -31,8 +31,8 @@ cp -pR include/ "$THIRDPARTY_BUILD"/lib/llvm-6.0/include/
 
 # WAVM.
 
-COMMIT=69d647ecf6d355921b79a58aa6b1d674a76b4c2b # 2019-01-24
-SHA256=b0789161eb96cc0695cda6e0ea0b2db0bd1919795cebf5d139d66a173234d301
+COMMIT=d3607084b98017243cefe699064d4d5cf3f50fd9  # Thu Feb 14 13:12:32 2019 -0500
+SHA256=27d8171268a32f74f5432e75243776751b69ba78a37642154aba717ffc1bd404
 
 curl https://github.com/WAVM/WAVM/archive/"$COMMIT".tar.gz -sLo WAVM-"$COMMIT".tar.gz \
   && echo "$SHA256" WAVM-"$COMMIT".tar.gz | sha256sum --check
