@@ -111,12 +111,11 @@ TEST(WasmTest, DivByZero) {
   wasm->setGeneralContext(std::move(context));
   wasm->wasmVm()->start(wasm->generalContext());
 #if 0
-  // Not yet supported in gtes.
+  // Not yet supported in gtest.
   EXPECT_THROW_WITH_MESSAGE_THAT(wasm->generalContext()->onLog(), Extensions::Common::Wasm::WasmException,
                                  testing::StartsWith("wavm.integerDivideByZeroOrOverflow"));
 #endif
   EXPECT_THROW(wasm->generalContext()->onLog(), Extensions::Common::Wasm::WasmException);
-      // testing::Property(&std::exception::what(), testing::StartsWith("wavm.integerDivideByZeroOrOverflow")));
 }
 
 } // namespace Wasm
