@@ -4,7 +4,6 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "envoy/common/exception.h"
 #include "envoy/config/wasm/v2/wasm.pb.validate.h"
