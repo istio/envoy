@@ -76,7 +76,7 @@ struct SaveRestoreContext {
     WAVM::Runtime::catchRuntimeExceptions([&] { _x; },                                             \
                                           [&](WAVM::Runtime::Exception* exception) {               \
                                             auto description = describeException(exception);       \
-                                            delete exception;                                      \
+                                            destroyException(exception);                           \
                                             throw WasmException(description);                      \
                                           });                                                      \
   } while (0)
@@ -89,7 +89,7 @@ struct SaveRestoreContext {
         [&] { _return_value = static_cast<_type>(_x[0]._member); },                                \
         [&](WAVM::Runtime::Exception* exception) {                                                 \
           auto description = describeException(exception);                                         \
-          delete exception;                                                                        \
+          destroyException(exception);                                                             \
           throw WasmException(description);                                                        \
         });                                                                                        \
     return _return_value;                                                                          \
