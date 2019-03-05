@@ -297,8 +297,9 @@ public:
   bool getEmscriptenVersion(uint32_t* emscripten_major_version, uint32_t* emscripten_minor_version,
                             uint32_t* emscripten_abi_major_version,
                             uint32_t* emscripten_abi_minor_version) {
-    if (!is_emscripten_)
+    if (!is_emscripten_) {
       return false;
+    }
     *emscripten_major_version = emscripten_major_version_;
     *emscripten_minor_version = emscripten_minor_version_;
     *emscripten_abi_major_version = emscripten_abi_major_version_;
