@@ -1075,6 +1075,8 @@ bool Wasm::initialize(const std::string& code, absl::string_view name, bool allo
   registerCallbacks();
   establishEnvironment();
   wasm_vm_->link(name, is_emscripten_);
+  general_context_ = createContext();
+  wasm_vm_->start(general_context_.get());
   if (is_emscripten_) {
     ASSERT(std::isnan(emscripten_NaN_->get()));
     ASSERT(std::isinf(emscripten_Infinity_->get()));
