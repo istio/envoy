@@ -157,10 +157,11 @@ TEST(WasmTest, IntrinsicGlobals) {
 }
 
 // The asm2wasm.wasm file uses operations which would require the asm2wasm Emscripten module *if*
-// em++ is invoked with the trap mode "clamp".  See https://emscripten.org/docs/compiling/WebAssembly.html
-// This test demonstrates that the asm2wasm module is not required with the trap mode is set to "allow".
-// Note: future WASM standards will change this behavior by providing non-trapping instructions, but in the
-// mean time we support the default Emscripten behavior.
+// em++ is invoked with the trap mode "clamp". See
+// https://emscripten.org/docs/compiling/WebAssembly.html This test demonstrates that the asm2wasm
+// module is not required with the trap mode is set to "allow". Note: future WASM standards will
+// change this behavior by providing non-trapping instructions, but in the mean time we support the
+// default Emscripten behavior.
 TEST(WasmTest, Asm2Wasm) {
   Stats::IsolatedStoreImpl stats_store;
   Api::ApiPtr api = Api::createApiForTest(stats_store);
