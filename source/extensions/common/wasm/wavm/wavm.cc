@@ -188,8 +188,8 @@ template <typename T> struct WavmGlobal : Global<T>, Intrinsics::GenericGlobal<T
       : Intrinsics::GenericGlobal<T>(module, name.c_str(), value), wavm_(wavm) {}
   virtual ~WavmGlobal() {}
 
-  T get();
-  void set(const T& t);
+  T get() override;
+  void set(const T& t) override;
 
   Common::Wasm::Wavm::Wavm* wavm_;
 };
@@ -634,10 +634,10 @@ template <typename T>
 std::unique_ptr<Global<T>> makeGlobalWavm(WasmVm* vm, absl::string_view moduleName,
                                           absl::string_view name, T initialValue) {
   auto wavm = static_cast<Common::Wasm::Wavm::Wavm*>(vm);
-  auto g =
-      new WavmGlobal<T>(wavm, wavm->intrinsicModules_[moduleName], std::string(name), initialValue);
-  wavm->intrinsicGlobals_[std::make_pair(std::string(moduleName), std::string(name))] = g;
-  return std::unique_ptr<Global<T>>(g);
+  auto g = std::make_unique<WavmGlobal<T>>(wavm, wavm->intrinsicModules_[moduleName],
+                                           std::string(name), initialValue);
+  wavm->intrinsicGlobals_[std::make_pair(std::string(moduleName), std::string(name))] = g.get();
+  return g;
 }
 
 template std::unique_ptr<Global<double>> makeGlobalWavm(WasmVm* vm, absl::string_view moduleName,
