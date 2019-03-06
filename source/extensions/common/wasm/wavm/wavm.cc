@@ -217,8 +217,7 @@ struct Wavm : public WasmVm {
   void makeModule(absl::string_view name) override;
   absl::string_view getUserSection(absl::string_view name, bool* present) override;
 
-  void GetFunctions();
-  void RegisterCallbacks();
+  void getInstantiatedGlobals();
 
   bool hasInstantiatedModule_ = false;
   IR::Module irModule_;
@@ -313,6 +312,10 @@ void Wavm::link(absl::string_view name, bool needs_emscripten) {
   moduleInstance_ = instantiateModule(compartment_, module_, std::move(linkResult.resolvedImports),
                                       std::string(name));
   memory_ = getDefaultMemory(moduleInstance_);
+  getInstantiatedGlobals();
+}
+
+void Wavm::getInstantiatedGlobals() {
   for (auto& p : intrinsicGlobals_) {
     auto o =
         WAVM::Runtime::getInstanceExport(intrinsicModuleInstances_[p.first.first], p.first.second);
