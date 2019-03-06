@@ -285,7 +285,7 @@ void Wavm::link(absl::string_view name, bool needs_emscripten) {
   }
   WAVM::Runtime::LinkResult linkResult = linkModule(irModule_, rootResolver);
   moduleInstance_ = instantiateModule(compartment_, module_, std::move(linkResult.resolvedImports),
-      std::string(name));
+                                      std::string(name));
   memory_ = getDefaultMemory(moduleInstance_);
 }
 
@@ -471,7 +471,7 @@ void getFunctionWavmReturn(WasmVm* vm, absl::string_view functionName,
     throw WasmVmException(fmt::format("Bad function signature for: {}", functionName));
   }
   *function = [wavm, f](Context* context, Args... args) -> R {
-    UntaggedValue values[] = { args...};
+    UntaggedValue values[] = {args...};
     CALL_WITH_CONTEXT_RETURN(invokeFunctionUnchecked(wavm->context_, f, &values[0]), context,
                              uint32_t, i32);
   };
@@ -494,7 +494,7 @@ void getFunctionWavmReturn(WasmVm* vm, absl::string_view functionName,
     throw WasmVmException(fmt::format("Bad function signature for: {}", functionName));
   }
   *function = [wavm, f](Context* context, Args... args) -> R {
-    UntaggedValue values[] = { args...};
+    UntaggedValue values[] = {args...};
     CALL_WITH_CONTEXT(invokeFunctionUnchecked(wavm->context_, f, &values[0]), context);
   };
 }

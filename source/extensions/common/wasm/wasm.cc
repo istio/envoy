@@ -961,7 +961,8 @@ void Wasm::registerFunctions() {
 #undef _REGISTER
 
   // Calls with the "_proxy_" prefix.
-#define _REGISTER_PROXY(_fn) registerCallback(wasm_vm_.get(), "envoy", "_proxy_" #_fn, &_fn##Handler);
+#define _REGISTER_PROXY(_fn)                                                                       \
+  registerCallback(wasm_vm_.get(), "envoy", "_proxy_" #_fn, &_fn##Handler);
   _REGISTER_PROXY(log);
 
   _REGISTER_PROXY(getRequestStreamInfoProtocol);
