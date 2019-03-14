@@ -1025,9 +1025,9 @@ void Wasm::establishEnvironment() {
 }
 
 void Wasm::getFunctions() {
-#define _GET(_fn) getFunction(wasm_vm_.get(), #_fn, &_fn##_);
-  _GET(_malloc);
-  _GET(_free);
+#define _GET(_fn) getFunction(wasm_vm_.get(), "_" #_fn, &_fn##_);
+  _GET(malloc);
+  _GET(free);
 #undef _GET
 
 #define _GET_PROXY(_fn) getFunction(wasm_vm_.get(), "_proxy_" #_fn, &_fn##_);
@@ -1050,8 +1050,8 @@ void Wasm::getFunctions() {
   _GET_PROXY(onDelete);
 #undef _GET_PROXY
 
-  if (!_malloc_ || !_free_) {
-    throw WasmException("WAVM missing _malloc/_free");
+  if (!malloc_ || !free_) {
+    throw WasmException("WAVM missing malloc/free");
   }
 }
 

@@ -349,6 +349,9 @@ private:
   WasmCall2Void onConfigure_;
   WasmCall0Void onTick_;
 
+  WasmCall1Int malloc_;
+  WasmCall1Void free_;
+
   // Calls into the VM with a context.
   WasmContextCall0Void onCreate_;
 
@@ -383,9 +386,6 @@ private:
 
   std::unique_ptr<Global<double>> emscripten_NaN_;
   std::unique_ptr<Global<double>> emscripten_Infinity_;
-
-  WasmCall1Int _malloc_;
-  WasmCall1Void _free_;
 };
 
 inline WasmVm* Context::wasmVm() const { return wasm_->wasmVm(); }
@@ -507,13 +507,13 @@ std::unique_ptr<Global<T>> makeGlobal(WasmVm* vm, absl::string_view moduleName,
 }
 
 inline void* Wasm::allocMemory(uint32_t size, uint32_t* address) {
-  uint32_t a = _malloc_(generalContext(), size);
+  uint32_t a = malloc_(generalContext(), size);
   *address = a;
   // Note: this can thorw a WAVM exception.
   return const_cast<void*>(reinterpret_cast<const void*>(wasm_vm_->getMemory(a, size).data()));
 }
 
-inline void Wasm::freeMemoryOffset(uint32_t address) { _free_(generalContext(), address); }
+inline void Wasm::freeMemoryOffset(uint32_t address) { free_(generalContext(), address); }
 
 inline bool Wasm::freeMemory(void* pointer) {
   uint32_t offset;

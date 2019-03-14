@@ -237,8 +237,7 @@ struct Wavm : public WasmVm {
   std::unordered_map<std::pair<std::string, std::string>, WavmGlobalBase*, PairHash>
       intrinsicGlobals_;
   uint8_t* memory_base_ = nullptr;
-  intptr_t memory_size_ = 0;
-  ;
+  size_t memory_size_ = 0;
 };
 
 Wavm::~Wavm() {
@@ -369,7 +368,7 @@ bool Wavm::getMemoryOffset(void* host_pointer, uint32_t* vm_pointer) {
   if (offset < 0) {
     return false;
   }
-  if (offset > memory_size_) {
+  if (static_cast<size_t>(offset) > memory_size_) {
     return false;
   }
   *vm_pointer = static_cast<uint32_t>(offset);
