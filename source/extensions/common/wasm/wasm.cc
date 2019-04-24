@@ -624,7 +624,8 @@ void Context::setTickPeriod(std::chrono::milliseconds tick_period) {
 
 uint64_t Context::getCurrentTimeNanoseconds() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(
-    wasm_->time_source_.systemTime().time_since_epoch()).count();
+             wasm_->time_source_.systemTime().time_since_epoch())
+      .count();
 }
 
 // Shared Data

@@ -44,7 +44,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE void proxy_onTick() {
   logInfo(std::string("get counter = ") + std::to_string(c->get("test_tag")));
   logWarn(std::string("get gauge = ") + std::to_string(g->get(9)));
 
-  auto h_id = h->resolve(7, "test_tag", true);
+  h->partiallyResolve(7);
+  auto h_id = h->resolve("test_tag", true);
   logError(std::string("resolved histogram name = ") + h->nameFromIdSlow(h_id));
 }
 
@@ -68,6 +69,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE void proxy_onLog(uint32_t /* context_zero */) {
   logWarn(std::string("get gauge = ") + std::to_string(g->get("test_tag1", "test_tag2")));
 
   h->record(3, 7, "test_tag", true);
-  auto simple_h = h->resolve(7, "test_tag", true);
-  logError(std::string("h_id = ") + h->nameFromIdSlow(simple_h.metric_id));
+  auto base_h = Counter<int>::New("test_histogram", "int_tag");
+  auto complete_h = base_h->resolveAndExtend<std::string, bool>(7, "string_tag", "bool_tag");
+  auto simple_h = complete_h->resolve("test_tag", true);
+  logError(std::string("h_id = ") + complete_h->nameFromIdSlow(simple_h.metric_id));
 }

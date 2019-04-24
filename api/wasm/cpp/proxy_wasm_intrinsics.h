@@ -778,11 +778,14 @@ struct MetricBase {
 
   MetricType type;
   std::string name;
+  std::string prefix;
   std::vector<MetricTag> tags;
   std::unordered_map<std::string, uint32_t> metric_ids;
 
+  std::string prefixWithFields(const std::vector<const std::string>& fields);
   uint32_t resolveFullName(const std::string& n);
   uint32_t resolveWithFields(const std::vector<const std::string>& fields);
+  void partiallyResolveWithFields(const std::vector<const std::string>& fields);
   std::string nameFromIdSlow(uint32_t id);
 };
 
@@ -794,30 +797,43 @@ struct Metric : public MetricBase {
   template <typename... Fields> void record(uint64_t value, Fields... tags);
   template <typename... Fields> uint64_t get(Fields... tags);
   template <typename... Fields> uint32_t resolve(Fields... tags);
+  template <typename... Fields> void partiallyResolve(Fields... tags);
 };
 
-inline uint32_t MetricBase::resolveWithFields(const std::vector<const std::string>& fields) {
-  if (fields.size() != tags.size()) {
-    throw ProxyException("metric fields.size() != tags.size()");
-  }
-  size_t s = 0;
-  for (auto& t : tags) {
-    s += t.name.size() + 1; // 1 more for "."
+inline std::string MetricBase::prefixWithFields(const std::vector<const std::string>& fields) {
+  size_t s = prefix.size();
+  for (int i = 0; i < fields.size(); i++) {
+    s += tags[i].name.size() + 1; // 1 more for "."
   }
   for (auto& f : fields) {
     s += f.size() + 1; // 1 more for "."
   }
-  s += name.size() + 2; // "." and "\0";
+  s += 1; // "\0";
   std::string n;
   n.reserve(s);
-  for (int i = 0; i < tags.size(); i++) {
+  n.append(prefix);
+  for (int i = 0; i < fields.size(); i++) {
     n.append(tags[i].name);
     n.append(".");
     n.append(fields[i]);
     n.append(".");
   }
-  n.append(name);
-  return resolveFullName(n);
+  return n;
+}
+
+inline uint32_t MetricBase::resolveWithFields(const std::vector<const std::string>& fields) {
+  if (fields.size() != tags.size()) {
+    throw ProxyException("metric fields.size() != tags.size()");
+  }
+  return resolveFullName(prefixWithFields(fields) + name);
+}
+
+inline void MetricBase::partiallyResolveWithFields(const std::vector<const std::string>& fields) {
+  if (fields.size() >= tags.size()) {
+    throw ProxyException("metric fields.size() >= tags.size()");
+  }
+  prefix = prefixWithFields(fields);
+  tags.erase(tags.begin(), tags.begin()+(fields.size()));
 }
 
 template <typename T> inline std::string ToString(T t) { return std::to_string(t); }
@@ -848,6 +864,11 @@ inline std::string MetricBase::nameFromIdSlow(uint32_t id) {
 template <typename... Fields> uint32_t Metric::resolve(Fields... f) {
   std::vector<const std::string> fields{ToString(f)...};
   return resolveWithFields(fields);
+}
+
+template <typename... Fields> void Metric::partiallyResolve(Fields... f) {
+  std::vector<const std::string> fields{ToString(f)...};
+  partiallyResolveWithFields(fields);
 }
 
 template <typename... Fields> void Metric::increment(int64_t offset, Fields... f) {
@@ -934,6 +955,14 @@ template <typename... Tags> struct Counter : public MetricBase {
     return SimpleCounter(resolveWithFields(fields));
   }
 
+  template<typename... AdditionalTags>
+  Counter<AdditionalTags...>* resolveAndExtend(Tags... f, MetricTagDescriptor<AdditionalTags>... fieldnames) {
+    std::vector<const std::string> fields{ToString(f)...};
+    auto new_counter = Counter<AdditionalTags...>::New(name, fieldnames...);
+    new_counter->prefix = prefixWithFields(fields);
+    return new_counter;
+  }
+
   void increment(int64_t offset, Tags... tags) {
     std::vector<const std::string> fields{ToString(tags)...};
     auto metric_id = resolveWithFields(fields);
@@ -968,6 +997,14 @@ template <typename... Tags> struct Gauge : public MetricBase {
     return SimpleGauge(resolveWithFields(fields));
   }
 
+  template<typename... AdditionalTags>
+  Gauge<AdditionalTags...>* resolveAndExtend(Tags... f, MetricTagDescriptor<AdditionalTags>... fieldnames) {
+    std::vector<const std::string> fields{ToString(f)...};
+    auto new_gauge = Gauge<AdditionalTags...>::New(name, fieldnames...);
+    new_gauge->prefix = prefixWithFields(fields);
+    return new_gauge;
+  }
+
   void record(int64_t offset, Tags... tags) {
     std::vector<const std::string> fields{ToString(tags)...};
     auto metric_id = resolveWithFields(fields);
@@ -998,6 +1035,14 @@ template <typename... Tags> struct Histogram : public MetricBase {
   SimpleHistogram resolve(Tags... f) {
     std::vector<const std::string> fields{ToString(f)...};
     return SimpleHistogram(resolveWithFields(fields));
+  }
+
+  template<typename... AdditionalTags>
+  Histogram<AdditionalTags...>* resolveAndExtend(Tags... f, MetricTagDescriptor<AdditionalTags>... fieldnames) {
+    std::vector<const std::string> fields{ToString(f)...};
+    auto new_histogram = Histogram<AdditionalTags...>::New(name, fieldnames...);
+    new_histogram->prefix = prefixWithFields(fields);
+    return new_histogram;
   }
 
   void record(int64_t offset, Tags... tags) {
