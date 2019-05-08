@@ -28,7 +28,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void proxy_onTick() {
                       {MetricTag{"counter_tag", MetricTag::TagType::String}});
   auto g = new Metric(MetricType::Gauge, "test_gauge",
                       {MetricTag{"gauge_int_tag", MetricTag::TagType::Int}});
-  auto h = new Metric(MetricType::Gauge, "test_histogram",
+  auto h = new Metric(MetricType::Histogram, "test_histogram",
                       {MetricTag{"histogram_int_tag", MetricTag::TagType::Int},
                        MetricTag{"histogram_string_tag", MetricTag::TagType::String},
                        MetricTag{"histogram_bool_tag", MetricTag::TagType::Bool}});
@@ -53,9 +53,9 @@ extern "C" EMSCRIPTEN_KEEPALIVE void proxy_onTick() {
 extern "C" EMSCRIPTEN_KEEPALIVE void proxy_onLog(uint32_t /* context_zero */) {
   auto c =
       Counter<std::string, int, bool>::New("test_counter", "string_tag", "int_tag", "bool_tag");
-  auto g = Counter<std::string, std::string>::New("test_counter", "string_tag1", "string_tag2");
+  auto g = Gauge<std::string, std::string>::New("test_gauge", "string_tag1", "string_tag2");
   auto h =
-      Counter<int, std::string, bool>::New("test_histogram", "int_tag", "string_tag", "bool_tag");
+      Histogram<int, std::string, bool>::New("test_histogram", "int_tag", "string_tag", "bool_tag");
 
   c->increment(1, "test_tag", 7, true);
   logTrace(std::string("get counter = ") + std::to_string(c->get("test_tag", 7, true)));
