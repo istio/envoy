@@ -991,7 +991,7 @@ struct Metric : public MetricBase {
   template <typename... Fields> void record(uint64_t value, Fields... tags);
   template <typename... Fields> uint64_t get(Fields... tags);
   template <typename... Fields> uint32_t resolve(Fields... tags);
-  template <typename... Fields> void partiallyResolve(Fields... tags);
+  template <typename... Fields> Metric partiallyResolve(Fields... tags);
 };
 
 inline std::string MetricBase::prefixWithFields(const std::vector<const std::string>& fields) {
@@ -1060,9 +1060,11 @@ template <typename... Fields> inline uint32_t Metric::resolve(Fields... f) {
   return resolveWithFields(fields);
 }
 
-template <typename... Fields> inline void Metric::partiallyResolve(Fields... f) {
+template <typename... Fields> Metric Metric::partiallyResolve(Fields... f) {
   std::vector<const std::string> fields{ToString(f)...};
-  partiallyResolveWithFields(fields);
+  Metric partial_metric(*this);
+  partial_metric.partiallyResolveWithFields(fields);
+  return partial_metric;
 }
 
 template <typename... Fields> inline void Metric::increment(int64_t offset, Fields... f) {

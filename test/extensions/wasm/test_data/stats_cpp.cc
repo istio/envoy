@@ -24,29 +24,29 @@ extern "C" EMSCRIPTEN_KEEPALIVE void proxy_onStart() {
 
 // Test the higher level interface.
 extern "C" EMSCRIPTEN_KEEPALIVE void proxy_onTick() {
-  auto c = new Metric(MetricType::Counter, "test_counter",
+  Metric c(MetricType::Counter, "test_counter",
                       {MetricTag{"counter_tag", MetricTag::TagType::String}});
-  auto g = new Metric(MetricType::Gauge, "test_gauge",
+  Metric g(MetricType::Gauge, "test_gauge",
                       {MetricTag{"gauge_int_tag", MetricTag::TagType::Int}});
-  auto h = new Metric(MetricType::Histogram, "test_histogram",
+  Metric h(MetricType::Histogram, "test_histogram",
                       {MetricTag{"histogram_int_tag", MetricTag::TagType::Int},
                        MetricTag{"histogram_string_tag", MetricTag::TagType::String},
                        MetricTag{"histogram_bool_tag", MetricTag::TagType::Bool}});
 
-  c->increment(1, "test_tag");
-  g->record(2, 9);
-  h->record(3, 7, "test_tag", true);
+  c.increment(1, "test_tag");
+  g.record(2, 9);
+  h.record(3, 7, "test_tag", true);
 
-  logTrace(std::string("get counter = ") + std::to_string(c->get("test_tag")));
-  c->increment(1, "test_tag");
-  logDebug(std::string("get counter = ") + std::to_string(c->get("test_tag")));
-  c->record(3, "test_tag");
-  logInfo(std::string("get counter = ") + std::to_string(c->get("test_tag")));
-  logWarn(std::string("get gauge = ") + std::to_string(g->get(9)));
+  logTrace(std::string("get counter = ") + std::to_string(c.get("test_tag")));
+  c.increment(1, "test_tag");
+  logDebug(std::string("get counter = ") + std::to_string(c.get("test_tag")));
+  c.record(3, "test_tag");
+  logInfo(std::string("get counter = ") + std::to_string(c.get("test_tag")));
+  logWarn(std::string("get gauge = ") + std::to_string(g.get(9)));
 
-  h->partiallyResolve(7);
-  auto h_id = h->resolve("test_tag", true);
-  logError(std::string("resolved histogram name = ") + h->nameFromIdSlow(h_id));
+  auto hh = h.partiallyResolve(7);
+  auto h_id = hh.resolve("test_tag", true);
+  logError(std::string("resolved histogram name = ") + hh.nameFromIdSlow(h_id));
 }
 
 // Test the high level interface.
