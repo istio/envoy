@@ -26,6 +26,7 @@
 #include "common/http/utility.h"
 #include "common/tracing/http_tracer_impl.h"
 
+#include "extensions/common/wasm/v8/v8.h"
 #include "extensions/common/wasm/wavm/wavm.h"
 #include "extensions/common/wasm/well_known_names.h"
 
@@ -1437,7 +1438,7 @@ void Wasm::getFunctions() {
 #undef _GET_PROXY
 
   if (!malloc_ || !free_) {
-    throw WasmException("WAVM missing malloc/free");
+    throw WasmException("WASM missing malloc/free");
   }
 }
 
@@ -1474,8 +1475,9 @@ bool Wasm::initialize(const std::string& code, absl::string_view name, bool allo
   general_context_ = createContext();
   wasm_vm_->start(general_context_.get());
   if (is_emscripten_) {
-    ASSERT(std::isnan(emscripten_NaN_->get()));
-    ASSERT(std::isinf(emscripten_Infinity_->get()));
+    // TODO(PiotrSikora): re-enable those checks after v8 starts returning globals.
+    // ASSERT(std::isnan(emscripten_NaN_->get()));
+    // ASSERT(std::isinf(emscripten_Infinity_->get()));
   }
   code_ = code;
   allow_precompiled_ = allow_precompiled;
@@ -1762,9 +1764,12 @@ void GrpcStreamClientHandler::onRemoteClose(Grpc::Status::GrpcStatus status,
 }
 
 std::unique_ptr<WasmVm> createWasmVm(absl::string_view wasm_vm) {
-  if (wasm_vm == WasmVmNames::get().Wavm) {
-    return Wavm::createWavm();
+  if (wasm_vm == WasmVmNames::get().v8) {
+    return V8::createVm();
+  } else if (wasm_vm == WasmVmNames::get().Wavm) {
+    return Wavm::createVm();
   } else {
+    UNREFERENCED_PARAMETER(wasm_vm);
     return nullptr;
   }
 }
