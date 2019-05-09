@@ -1002,7 +1002,6 @@ inline std::string MetricBase::prefixWithFields(const std::vector<const std::str
   for (auto& f : fields) {
     s += f.size() + 1; // 1 more for "."
   }
-  s += 1; // "\0";
   std::string n;
   n.reserve(s);
   n.append(prefix);

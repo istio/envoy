@@ -9202,8 +9202,6 @@
     i32.store offset=8
     local.get $0
     local.get $3
-    i32.const 1
-    i32.add
     call $__ZNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7reserveEm
     local.get $0
     local.get $7
