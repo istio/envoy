@@ -53,7 +53,33 @@ cd ../..
 
 # Patch wasm-c-api.
 
-cat <<EOF | patch -p1
+# 1. Disable DEBUG (alloc/free accounting), since it seems to be broken
+#    in optimized builds.
+# 2. Disable hardcoded sanitizers.
+
+cat <<\EOF | patch -p1
+--- a/Makefile
++++ b/Makefile
+@@ -7,10 +7,10 @@ V8_VERSION = branch-heads/7.4
+ V8_ARCH = x64
+ V8_MODE = release
+
+-WASM_FLAGS = -DDEBUG  # -DDEBUG_LOG
+-C_FLAGS = ${WASM_FLAGS} -Wall -Werror -ggdb -O -fsanitize=address
++WASM_FLAGS =
++C_FLAGS = ${WASM_FLAGS} -Wall -Werror -ggdb -O
+ CC_FLAGS = ${C_FLAGS}
+-LD_FLAGS = -fsanitize-memory-track-origins -fsanitize-memory-use-after-dtor
++LD_FLAGS =
+
+ C_COMP = clang
+EOF
+
+# 3. Enable "wasm_bulk_memory" required to load WASM modules with DataCount
+#    section, even when DataCount = 1.
+# 4. Force full GC when destroying VMs.
+
+cat <<\EOF | patch -p1
 --- a/src/wasm-v8.cc
 +++ b/src/wasm-v8.cc
 @@ -296,7 +296,7 @@ auto Engine::make(own<Config*>&& config) -> own<Engine*> {
@@ -65,14 +91,20 @@ cat <<EOF | patch -p1
    // v8::V8::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
    auto engine = new(std::nothrow) EngineImpl;
    if (!engine) return own<Engine*>();
+@@ -349,7 +349,7 @@ public:
+   }
+
+   ~StoreImpl() {
+-#ifdef DEBUG
++#if 1 //def DEBUG
+     isolate_->RequestGarbageCollectionForTesting(
+       v8::Isolate::kFullGarbageCollection);
+ #endif
 EOF
 
 # Build wasm-c-api.
 
 # TODO(PiotrSikora): respect CC/CXX/CFLAGS/CXXFLAGS/LDFLAGS upstream.
-
-# Disable sanitizers.
-sed -i"" -E "s/ -fsanitize[^\n]+//" Makefile
 
 make wasm
 
