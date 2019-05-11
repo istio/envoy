@@ -147,7 +147,7 @@ private:
 
 // Helper functions.
 
-const char* printValKind(wasm::ValKind kind) {
+static const char* printValKind(wasm::ValKind kind) {
   switch (kind) {
   case wasm::I32:
     return "i32";
@@ -164,7 +164,7 @@ const char* printValKind(wasm::ValKind kind) {
   }
 }
 
-std::string printValTypes(const wasm::vec<wasm::ValType*>& types) {
+static std::string printValTypes(const wasm::vec<wasm::ValType*>& types) {
   if (types.size() == 0) {
     return "void";
   }
@@ -180,7 +180,8 @@ std::string printValTypes(const wasm::vec<wasm::ValType*>& types) {
   return s;
 }
 
-bool equalValTypes(const wasm::vec<wasm::ValType*>& left, const wasm::vec<wasm::ValType*>& right) {
+static bool equalValTypes(const wasm::vec<wasm::ValType*>& left,
+                          const wasm::vec<wasm::ValType*>& right) {
   if (left.size() != right.size()) {
     return false;
   }

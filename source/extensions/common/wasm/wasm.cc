@@ -1769,7 +1769,6 @@ std::unique_ptr<WasmVm> createWasmVm(absl::string_view wasm_vm) {
   } else if (wasm_vm == WasmVmNames::get().Wavm) {
     return Wavm::createVm();
   } else {
-    UNREFERENCED_PARAMETER(wasm_vm);
     return nullptr;
   }
 }
