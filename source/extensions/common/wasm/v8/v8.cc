@@ -468,7 +468,7 @@ bool V8::setMemory(uint32_t pointer, uint32_t size, void* data) {
 template <typename T>
 std::unique_ptr<Global<T>> V8::registerHostGlobalImpl(absl::string_view moduleName,
                                                       absl::string_view name, T initialValue) {
-  ENVOY_LOG(trace, "[wasm] registerHostGlobabl(\"{}.{}\", {})", moduleName, name, initialValue);
+  ENVOY_LOG(trace, "[wasm] registerHostGlobal(\"{}.{}\", {})", moduleName, name, initialValue);
   auto value = wasm::Val::make(initialValue);
   auto type = wasm::GlobalType::make(wasm::ValType::make(value.kind()), wasm::CONST);
   auto global = wasm::Global::make(store_.get(), type.get(), value);
