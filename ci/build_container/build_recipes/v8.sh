@@ -4,8 +4,8 @@ set -e
 
 # Get wasm-c-api.
 
-COMMIT=0705a10690d42ff312102392a7f6eeda56985182  # Tue Apr 16 14:05:11 2019 +0200
-SHA256=dc4ea492e4a45ea8aa482091585710a44719bc60a60b958fe5aa4e22fa8887ba
+COMMIT=111a3e4a0962fae4da2428b8680f7dfbc8deef47  # Mon May 13 11:10:04 2019 +0200
+SHA256=4eb700586902d0f6ebdcbc0147f5674df95743cc831495191b7df4cb32fb3ef0
 
 curl https://github.com/WebAssembly/wasm-c-api/archive/"$COMMIT".tar.gz -sLo wasm-c-api-"$COMMIT".tar.gz \
   && echo "$SHA256" wasm-c-api-"$COMMIT".tar.gz | sha256sum --check
@@ -24,7 +24,7 @@ export PATH="$PATH:$PWD/depot_tools"
 
 # Get v8.
 
-VERSION=7.4.288.26  # match wasm-c-api (branch-heads/7.4)
+VERSION=7.4.288.28  # match wasm-c-api (branch-heads/7.4)
 
 fetch v8
 cd v8
