@@ -195,15 +195,22 @@ static bool equalValTypes(const wasm::vec<wasm::ValType*>& left,
 
 // Template magic.
 
+template <typename T> constexpr auto convertArgToValKind();
+template <> constexpr auto convertArgToValKind<int32_t>() { return wasm::I32; };
+template <> constexpr auto convertArgToValKind<uint32_t>() { return wasm::I32; };
+template <> constexpr auto convertArgToValKind<int64_t>() { return wasm::I64; };
+template <> constexpr auto convertArgToValKind<uint64_t>() { return wasm::I64; };
+template <> constexpr auto convertArgToValKind<float>() { return wasm::F32; };
+template <> constexpr auto convertArgToValKind<double>() { return wasm::F64; };
+
 template <typename T, std::size_t... I>
-wasm::vec<wasm::ValType*> convertArgsTupleToValTypesImpl(absl::index_sequence<I...>) {
-  // TODO(PiotrSikora): use partial template instantiation to convert types to enums.
-  return wasm::vec<wasm::ValType*>::make(wasm::ValType::make(
-      wasm::Val::make(static_cast<typename std::tuple_element<I, T>::type>(0)).kind())...);
+constexpr auto convertArgsTupleToValTypesImpl(absl::index_sequence<I...>) {
+  return wasm::vec<wasm::ValType*>::make(
+      wasm::ValType::make(convertArgToValKind<typename std::tuple_element<I, T>::type>())...);
 }
 
-template <typename T> wasm::vec<wasm::ValType*> convertArgsTupleToValTypes() {
-  return convertArgsTupleToValTypesImpl<T>(absl::make_index_sequence<std::tuple_size<T>::value>{});
+template <typename T> constexpr auto convertArgsTupleToValTypes() {
+  return convertArgsTupleToValTypesImpl<T>(absl::make_index_sequence<std::tuple_size<T>::value>());
 }
 
 template <typename T, typename U, std::size_t... I>
@@ -213,7 +220,7 @@ constexpr T convertValTypesToArgsTupleImpl(const U& arr, absl::index_sequence<I.
 
 template <typename T, typename U> constexpr T convertValTypesToArgsTuple(const U& arr) {
   return convertValTypesToArgsTupleImpl<T>(arr,
-                                           absl::make_index_sequence<std::tuple_size<T>::value>{});
+                                           absl::make_index_sequence<std::tuple_size<T>::value>());
 }
 
 // V8 implementation.
