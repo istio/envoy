@@ -21,7 +21,6 @@
 #include "absl/strings/match.h"
 #include "absl/types/span.h"
 #include "absl/utility/utility.h"
-#include "wasm-c-api/wasm-bin.hh"
 #include "wasm-c-api/wasm.hh"
 
 namespace Envoy {
@@ -193,6 +192,21 @@ static bool equalValTypes(const wasm::vec<wasm::ValType*>& left,
   return true;
 }
 
+static uint32_t parseVarint(const byte_t*& pos, const byte_t* end) {
+  uint32_t n = 0;
+  uint32_t shift = 0;
+  byte_t b;
+  do {
+    if (pos + 1 > end) {
+      throw WasmException("Failed to parse corrupted WASM module");
+    }
+    b = *pos++;
+    n += (b & 0x7f) << shift;
+    shift += 7;
+  } while ((b & 0x80) != 0);
+  return n;
+}
+
 // Template magic.
 
 template <typename T> constexpr auto convertArgToValKind();
@@ -244,12 +258,20 @@ absl::string_view V8::getUserSection(absl::string_view name) {
   const byte_t* end = source_.get() + source_.size();
   const byte_t* pos = source_.get() + 8; // skip header
   while (pos < end) {
-    // TODO(PiotrSikora): make sure that we don't overread.
+    if (pos + 1 > end) {
+      throw WasmException("Failed to parse corrupted WASM module");
+    }
     auto type = *pos++;
-    auto rest = wasm::bin::u32(pos);
+    auto rest = parseVarint(pos, end);
+    if (pos + rest > end) {
+      throw WasmException("Failed to parse corrupted WASM module");
+    }
     if (type == 0 /* custom section */) {
       auto start = pos;
-      auto len = wasm::bin::u32(pos);
+      auto len = parseVarint(pos, end);
+      if (pos + len > end) {
+        throw WasmException("Failed to parse corrupted WASM module");
+      }
       pos += len;
       rest -= (pos - start);
       if (len == name.size() && ::memcmp(pos - len, name.data(), len) == 0) {
