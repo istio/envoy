@@ -451,10 +451,13 @@ absl::string_view V8::getMemory(uint32_t pointer, uint32_t size) {
   return absl::string_view(memory_->data() + pointer, size);
 }
 
-bool V8::getMemoryOffset(void* host_pointer, uint32_t*) {
+bool V8::getMemoryOffset(void* host_pointer, uint32_t* vm_pointer) {
   ENVOY_LOG(trace, "[wasm] getMemoryOffset({})", host_pointer);
-  // TODO(PiotrSikora): add support when/if needed.
-  return false;
+  ASSERT(memory_ != nullptr);
+  RELEASE_ASSERT(static_cast<char*>(host_pointer) >= memory_->data(), "");
+  RELEASE_ASSERT(static_cast<char*>(host_pointer) <= memory_->data() + memory_->data_size(), "");
+  *vm_pointer = static_cast<char*>(host_pointer) - memory_->data();
+  return true;
 }
 
 bool V8::setMemory(uint32_t pointer, uint32_t size, void* data) {
