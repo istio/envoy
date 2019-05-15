@@ -54,7 +54,7 @@ cd ../..
 # Patch wasm-c-api.
 
 # 1. Disable DEBUG (alloc/free accounting), since it seems to be broken
-#    in optimized builds.
+#    in optimized builds and/or when using sanitizers.
 # 2. Disable hardcoded sanitizers.
 
 cat <<\EOF | patch -p1
