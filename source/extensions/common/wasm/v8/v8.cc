@@ -197,13 +197,13 @@ static bool equalValTypes(const wasm::vec<wasm::ValType*>& left,
 
 template <typename T, std::size_t... I>
 wasm::vec<wasm::ValType*> convertArgsTupleToValTypesImpl(absl::index_sequence<I...>) {
+  // TODO(PiotrSikora): use partial template instantiation to convert types to enums.
   return wasm::vec<wasm::ValType*>::make(wasm::ValType::make(
       wasm::Val::make(static_cast<typename std::tuple_element<I, T>::type>(0)).kind())...);
 }
 
-template <typename T, typename Indices = absl::make_index_sequence<std::tuple_size<T>::value>>
-wasm::vec<wasm::ValType*> convertArgsTupleToValTypes() {
-  return convertArgsTupleToValTypesImpl<T>(Indices{});
+template <typename T> wasm::vec<wasm::ValType*> convertArgsTupleToValTypes() {
+  return convertArgsTupleToValTypesImpl<T>(absl::make_index_sequence<std::tuple_size<T>::value>{});
 }
 
 template <typename T, std::size_t... I>
@@ -212,10 +212,10 @@ T convertValRefsVectorToTupleImpl(const std::vector<const wasm::Val*>& vec,
   return std::make_tuple((vec[I]->get<typename std::tuple_element<I, T>::type>())...);
 }
 
-template <typename T, typename Indices = absl::make_index_sequence<std::tuple_size<T>::value>>
-T convertValRefsVectorToTuple(const std::vector<const wasm::Val*>& vec) {
+template <typename T> T convertValRefsVectorToTuple(const std::vector<const wasm::Val*>& vec) {
   // TODO(PiotrSikora): assert that vec.size() == std::tuple_size<T>::value.
-  return convertValRefsVectorToTupleImpl<T>(vec, Indices{});
+  return convertValRefsVectorToTupleImpl<T>(vec,
+                                            absl::make_index_sequence<std::tuple_size<T>::value>{});
 }
 
 // V8 implementation.
