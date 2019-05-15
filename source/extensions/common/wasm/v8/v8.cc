@@ -292,17 +292,16 @@ void V8::link(absl::string_view debug_name, bool needs_emscripten) {
         }
       }
       if (func) {
-        if (equalValTypes(import_type->func()->params(), func->type()->func()->params()) &&
-            equalValTypes(import_type->func()->results(), func->type()->func()->results())) {
+        if (equalValTypes(import_type->func()->params(), func->type()->params()) &&
+            equalValTypes(import_type->func()->results(), func->type()->results())) {
           imports.push_back(func);
         } else {
-          throw WasmException(
-              fmt::format("Failed to load WASM module due to an import type mismatch: {}.{}, "
-                          "want: {} -> {}, but host exports: {} -> {}",
-                          module, name, printValTypes(import_type->func()->params()),
-                          printValTypes(import_type->func()->results()),
-                          printValTypes(func->type()->func()->params()),
-                          printValTypes(func->type()->func()->results())));
+          throw WasmException(fmt::format(
+              "Failed to load WASM module due to an import type mismatch: {}.{}, "
+              "want: {} -> {}, but host exports: {} -> {}",
+              module, name, printValTypes(import_type->func()->params()),
+              printValTypes(import_type->func()->results()), printValTypes(func->type()->params()),
+              printValTypes(func->type()->results())));
         }
       } else {
         throw WasmException(
@@ -533,8 +532,8 @@ void V8::getModuleFunctionImpl(absl::string_view functionName,
     return;
   }
   const wasm::Func* func = it->second.get();
-  // TODO(PiotrSikora): make sure that type of each argument is correct.
-  if (func->param_arity() != sizeof...(Args) || func->result_arity() != 0) {
+  if (!equalValTypes(func->type()->params(), convertArgsTupleToValTypes<std::tuple<Args...>>()) ||
+      !equalValTypes(func->type()->results(), convertArgsTupleToValTypes<std::tuple<>>())) {
     throw WasmVmException(fmt::format("Bad function signature for: {}", functionName));
   }
   *function = [func, functionName](Context* context, Args... args) -> void {
@@ -560,8 +559,8 @@ void V8::getModuleFunctionImpl(absl::string_view functionName,
     return;
   }
   const wasm::Func* func = it->second.get();
-  // TODO(PiotrSikora): make sure that type of each argument is correct.
-  if (func->param_arity() != sizeof...(Args) || func->result_arity() != 1) {
+  if (!equalValTypes(func->type()->params(), convertArgsTupleToValTypes<std::tuple<Args...>>()) ||
+      !equalValTypes(func->type()->results(), convertArgsTupleToValTypes<std::tuple<R>>())) {
     throw WasmVmException(fmt::format("Bad function signature for: {}", functionName));
   }
   *function = [func, functionName](Context* context, Args... args) -> R {
