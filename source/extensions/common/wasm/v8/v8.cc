@@ -206,16 +206,14 @@ template <typename T> wasm::vec<wasm::ValType*> convertArgsTupleToValTypes() {
   return convertArgsTupleToValTypesImpl<T>(absl::make_index_sequence<std::tuple_size<T>::value>{});
 }
 
-template <typename T, std::size_t... I>
-T convertValRefsVectorToTupleImpl(const std::vector<const wasm::Val*>& vec,
-                                  absl::index_sequence<I...>) {
-  return std::make_tuple((vec[I]->get<typename std::tuple_element<I, T>::type>())...);
+template <typename T, typename U, std::size_t... I>
+constexpr T convertValTypesToArgsTupleImpl(const U& arr, absl::index_sequence<I...>) {
+  return std::make_tuple((arr[I].template get<typename std::tuple_element<I, T>::type>())...);
 }
 
-template <typename T> T convertValRefsVectorToTuple(const std::vector<const wasm::Val*>& vec) {
-  // TODO(PiotrSikora): assert that vec.size() == std::tuple_size<T>::value.
-  return convertValRefsVectorToTupleImpl<T>(vec,
-                                            absl::make_index_sequence<std::tuple_size<T>::value>{});
+template <typename T, typename U> constexpr T convertValTypesToArgsTuple(const U& arr) {
+  return convertValTypesToArgsTupleImpl<T>(arr,
+                                           absl::make_index_sequence<std::tuple_size<T>::value>{});
 }
 
 // V8 implementation.
@@ -488,12 +486,7 @@ void V8::registerHostFunctionImpl(absl::string_view moduleName, absl::string_vie
   auto func = wasm::Func::make(
       store_.get(), type.get(),
       [](void* data, const wasm::Val params[], wasm::Val[]) -> wasm::own<wasm::Trap*> {
-        // TODO(PiotrSikora): avoid vector, convert to array-to-tuple.
-        std::vector<const wasm::Val*> args_vector;
-        for (size_t i = 0; i < sizeof...(Args); i++) {
-          args_vector.push_back(&params[i]);
-        }
-        auto args_tuple = convertValRefsVectorToTuple<std::tuple<Args...>>(args_vector);
+        auto args_tuple = convertValTypesToArgsTuple<std::tuple<Args...>>(params);
         auto args = std::tuple_cat(std::make_tuple(current_context_), args_tuple);
         auto function = reinterpret_cast<void (*)(void*, Args...)>(data);
         absl::apply(function, args);
@@ -512,12 +505,7 @@ void V8::registerHostFunctionImpl(absl::string_view moduleName, absl::string_vie
   auto func = wasm::Func::make(
       store_.get(), type.get(),
       [](void* data, const wasm::Val params[], wasm::Val results[]) -> wasm::own<wasm::Trap*> {
-        // TODO(PiotrSikora): avoid vector, convert to array-to-tuple.
-        std::vector<const wasm::Val*> args_vector;
-        for (size_t i = 0; i < sizeof...(Args); i++) {
-          args_vector.push_back(&params[i]);
-        }
-        auto args_tuple = convertValRefsVectorToTuple<std::tuple<Args...>>(args_vector);
+        auto args_tuple = convertValTypesToArgsTuple<std::tuple<Args...>>(params);
         auto args = std::tuple_cat(std::make_tuple(current_context_), args_tuple);
         auto function = reinterpret_cast<R (*)(void*, Args...)>(data);
         R rvalue = absl::apply(function, args);
