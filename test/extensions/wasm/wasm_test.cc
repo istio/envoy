@@ -164,8 +164,7 @@ TEST_P(WasmTest, EmscriptenVersion) {
   EXPECT_EQ(abi_minor, 1);
 }
 
-// TODO(PiotrSikora): fix "nan" being emitted as "0.00000" in v8.
-TEST(WasmTestWavmOnly, IntrinsicGlobals) {
+TEST_P(WasmTest, IntrinsicGlobals) {
   Stats::IsolatedStoreImpl stats_store;
   Api::ApiPtr api = Api::createApiForTest(stats_store);
   Upstream::MockClusterManager cluster_manager;
@@ -173,7 +172,8 @@ TEST(WasmTestWavmOnly, IntrinsicGlobals) {
   auto scope = Stats::ScopeSharedPtr(stats_store.createScope("wasm."));
   NiceMock<LocalInfo::MockLocalInfo> local_info;
   auto wasm = std::make_shared<Extensions::Common::Wasm::Wasm>(
-      "envoy.wasm.vm.wavm", "", "", cluster_manager, dispatcher, *scope, local_info, scope);
+      absl::StrCat("envoy.wasm.vm.", GetParam()), "", "", cluster_manager, dispatcher, *scope,
+      local_info, scope);
   EXPECT_NE(wasm, nullptr);
   const auto code = TestEnvironment::readFileToStringForTest(TestEnvironment::substitute(
       "{{ test_rundir }}/test/extensions/wasm/test_data/emscripten_cpp.wasm"));
