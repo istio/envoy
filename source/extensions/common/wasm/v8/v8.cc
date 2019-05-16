@@ -112,7 +112,7 @@ public:
 #undef _GET_MODULE_FUNCTION
 
 private:
-  void callModuleFunction(Context* context, absl::string_view functionName, wasm::Val args[],
+  void callModuleFunction(Context* context, absl::string_view functionName, const wasm::Val args[],
                           wasm::Val results[]);
 
   template <typename T>
@@ -432,8 +432,8 @@ void V8::start(Context* context) {
   ENVOY_LOG(trace, "[wasm] start()");
 
   if (module_needs_emscripten_) {
-    wasm::Val args[] = {wasm::Val::make(static_cast<uint32_t>(64 * 64 * 1024)),
-                        wasm::Val::make(static_cast<uint32_t>(128 * 64 * 1024))};
+    const wasm::Val args[] = {wasm::Val::make(static_cast<uint32_t>(64 * 64 * 1024 /* 4MB */)),
+                              wasm::Val::make(static_cast<uint32_t>(128 * 64 * 1024 /* 8MB */))};
     callModuleFunction(context, "establishStackSpace", args, nullptr);
     callModuleFunction(context, "globalCtors", nullptr, nullptr);
 
@@ -450,11 +450,11 @@ void V8::start(Context* context) {
     }
   }
 
-  callModuleFunction(context, "__post_instantiate", {}, nullptr);
+  callModuleFunction(context, "__post_instantiate", nullptr, nullptr);
 }
 
-void V8::callModuleFunction(Context* context, absl::string_view functionName, wasm::Val args[],
-                            wasm::Val results[]) {
+void V8::callModuleFunction(Context* context, absl::string_view functionName,
+                            const wasm::Val args[], wasm::Val results[]) {
   ENVOY_LOG(trace, "[wasm] callModuleFunction(\"{}\")", functionName);
   current_context_ = context;
 
