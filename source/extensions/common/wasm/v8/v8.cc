@@ -144,6 +144,15 @@ private:
   bool module_needs_emscripten_{};
 };
 
+template <typename T> struct V8ProxyForGlobal : Global<T> {
+  V8ProxyForGlobal(wasm::Global* value) : global_(value) {}
+
+  T get() override { return global_->get().get<T>(); };
+  void set(const T& value) override { global_->set(wasm::Val::make(static_cast<T>(value))); };
+
+  wasm::Global* global_;
+};
+
 // Helper functions.
 
 static const char* printValKind(wasm::ValKind kind) {
@@ -501,8 +510,9 @@ std::unique_ptr<Global<T>> V8::registerHostGlobalImpl(absl::string_view moduleNa
   auto value = wasm::Val::make(initialValue);
   auto type = wasm::GlobalType::make(wasm::ValType::make(value.kind()), wasm::CONST);
   auto global = wasm::Global::make(store_.get(), type.get(), value);
+  auto proxy = std::make_unique<V8ProxyForGlobal<T>>(global.get());
   host_globals_.emplace(absl::StrCat(moduleName, ".", name), std::move(global));
-  return nullptr;
+  return proxy;
 }
 
 template <typename... Args>
