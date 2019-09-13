@@ -1943,6 +1943,7 @@ void Context::onCreate(uint32_t root_context_id) {
 
 Http::FilterHeadersStatus Context::onRequestHeaders() {
   onCreate(root_context_id_);
+  in_vm_context_created_ = true;
   // Store the stream id so that we can use it in log().
   auto& stream_info = decoder_callbacks_->streamInfo();
   auto& metadata = (*stream_info.dynamicMetadata()
@@ -1992,8 +1993,17 @@ Http::FilterMetadataStatus Context::onRequestMetadata() {
 }
 
 Http::FilterHeadersStatus Context::onResponseHeaders() {
-  if (!wasm_->onResponseHeaders_)
+  if (!in_vm_context_created_) {
+    // If the request is invalid then onRequestHeaders() will not be called and neither will
+    // onCreate() then sendLocalReply be called which will call this function. In this case we
+    // need to call onCreate() so that the Context inside the VM is created before the
+    // onResponseHeaders() call.
+    onCreate(root_context_id_);
+    in_vm_context_created_ = true;
+  }
+  if (!wasm_->onResponseHeaders_) {
     return Http::FilterHeadersStatus::Continue;
+  }
   if (wasm_->onResponseHeaders_(this, id_) == 0) {
     return Http::FilterHeadersStatus::Continue;
   }
