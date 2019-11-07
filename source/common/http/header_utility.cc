@@ -139,6 +139,11 @@ bool HeaderUtility::headerIsValid(const absl::string_view header_value) {
                                      header_value.size()) != 0);
 }
 
+bool HeaderUtility::authorityIsValid(const absl::string_view header_value) {
+  return (nghttp2_check_authority(reinterpret_cast<const uint8_t*>(header_value.data()),
+                                  header_value.size()) != 0);
+}
+
 void HeaderUtility::addHeaders(Http::HeaderMap& headers, const Http::HeaderMap& headers_to_add) {
   headers_to_add.iterate(
       [](const Http::HeaderEntry& header, void* context) -> Http::HeaderMap::Iterate {

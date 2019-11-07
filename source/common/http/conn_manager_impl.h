@@ -32,6 +32,7 @@
 #include "common/common/linked_object.h"
 #include "common/grpc/common.h"
 #include "common/http/conn_manager_config.h"
+#include "common/http/header_utility.h"
 #include "common/http/user_agent.h"
 #include "common/http/utility.h"
 #include "common/stream_info/stream_info_impl.h"
