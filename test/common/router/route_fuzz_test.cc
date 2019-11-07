@@ -75,17 +75,6 @@ DEFINE_PROTO_FUZZER(const test::common::router::RouteTestCase& input) {
     MessageUtil::validate(input.config());
     ConfigImpl config(cleanRouteConfig(input.config()), factory_context, true);
     Http::TestHeaderMapImpl headers = Fuzz::fromHeaders(input.headers());
-    // It's a precondition of routing that {:authority, :path, x-forwarded-proto} headers exists,
-    // HCM enforces this.
-    if (headers.Host() == nullptr) {
-      headers.insertHost().value(std::string("example.com"));
-    }
-    if (headers.Path() == nullptr) {
-      headers.insertPath().value(std::string("/"));
-    }
-    if (headers.ForwardedProto() == nullptr) {
-      headers.insertForwardedProto().value(std::string("http"));
-    }
     auto route = config.route(headers, input.random_value());
     if (route != nullptr && route->routeEntry() != nullptr) {
       route->routeEntry()->finalizeRequestHeaders(headers, stream_info, true);
