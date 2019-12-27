@@ -231,7 +231,8 @@ private:
  * Struct definition for all outlier detection stats. @see stats_macros.h
  */
 struct DetectionStats {
-  ALL_OUTLIER_DETECTION_STATS(GENERATE_COUNTER_STRUCT, GENERATE_GAUGE_STRUCT)
+  ALL_OUTLIER_DETECTION_STATS(GENERATE_COUNTER_STRUCT, GENERATE_GAUGE_STRUCT);
+  //std::atomic<uint64_t>  ejections_active_;
 };
 
 /**
@@ -284,7 +285,7 @@ private:
  * implementations with different configuration. For now, as we iterate everything is contained
  * within this implementation.
  */
-class DetectorImpl : public Detector, public std::enable_shared_from_this<DetectorImpl> {
+class DetectorImpl : public Detector, public std::enable_shared_from_this<DetectorImpl> ,protected Logger::Loggable<Logger::Id::outlier>{
 public:
   static std::shared_ptr<DetectorImpl>
   create(const Cluster& cluster, const envoy::api::v2::cluster::OutlierDetection& config,
@@ -354,6 +355,7 @@ private:
   Runtime::Loader& runtime_;
   TimeSource& time_source_;
   DetectionStats stats_;
+  std::atomic<uint64_t>  ejections_active_;
   Event::TimerPtr interval_timer_;
   std::list<ChangeStateCb> callbacks_;
   std::unordered_map<HostSharedPtr, DetectorHostMonitorImpl*> host_monitors_;

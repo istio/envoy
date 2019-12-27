@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include "common/common/logger.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -253,8 +254,8 @@ DetectorImpl::DetectorImpl(const Cluster& cluster,
 DetectorImpl::~DetectorImpl() {
   for (const auto& host : host_monitors_) {
     if (host.first->healthFlagGet(Host::HealthFlag::FAILED_OUTLIER_CHECK)) {
-      ASSERT(stats_.ejections_active_.value() > 0);
-      stats_.ejections_active_.dec();
+      ASSERT(ejections_active_ > 0);
+      ejections_active_--;
     }
   }
 }
@@ -286,8 +287,8 @@ void DetectorImpl::initialize(const Cluster& cluster) {
         for (const HostSharedPtr& host : hosts_removed) {
           ASSERT(host_monitors_.count(host) == 1);
           if (host->healthFlagGet(Host::HealthFlag::FAILED_OUTLIER_CHECK)) {
-            ASSERT(stats_.ejections_active_.value() > 0);
-            stats_.ejections_active_.dec();
+            ASSERT(ejections_active_ > 0);
+            ejections_active_--;
           }
 
           host_monitors_.erase(host);
@@ -320,7 +321,8 @@ void DetectorImpl::checkHostForUneject(HostSharedPtr host, DetectorHostMonitorIm
           "outlier_detection.base_ejection_time_ms", config_.baseEjectionTimeMs()));
   ASSERT(monitor->numEjections() > 0);
   if ((base_eject_time * monitor->numEjections()) <= (now - monitor->lastEjectionTime().value())) {
-    stats_.ejections_active_.dec();
+    //stats_.ejections_active_.dec();
+    ejections_active_--;
     host->healthFlagClear(Host::HealthFlag::FAILED_OUTLIER_CHECK);
     // Reset the consecutive failure counters to avoid re-ejection on very few new errors due
     // to the non-triggering counter being close to its trigger value.
@@ -417,7 +419,15 @@ void DetectorImpl::ejectHost(HostSharedPtr host,
   uint64_t max_ejection_percent = std::min<uint64_t>(
       100, runtime_.snapshot().getInteger("outlier_detection.max_ejection_percent",
                                           config_.maxEjectionPercent()));
-  double ejected_percent = 100.0 * stats_.ejections_active_.value() / host_monitors_.size();
+
+  //std::cout<<"eject host"<<"config_.maxEjectionPercent():"<<
+  //config_.maxEjectionPercent()<<"runtime_.snapshot().getInteger"<<
+  //runtime_.snapshot().getInteger("outlier_detection.max_ejection_percent",config_.maxEjectionPercent());
+
+  ENVOY_LOG(debug, "eject config_.maxEjectionPercent{}, runtime_.snapshot().getInteger {} stats_.ejections_active_.value {} ", config_.maxEjectionPercent(),
+            runtime_.snapshot().getInteger("outlier_detection.max_ejection_percent",config_.maxEjectionPercent()), ejections_active_);
+
+  double ejected_percent = 100.0 * ejections_active_ / host_monitors_.size();
   // Note this is not currently checked per-priority level, so it is possible
   // for outlier detection to eject all hosts at any given priority level.
   if (ejected_percent < max_ejection_percent) {
@@ -427,7 +437,7 @@ void DetectorImpl::ejectHost(HostSharedPtr host,
       stats_.ejections_total_.inc();
     }
     if (enforceEjection(type)) {
-      stats_.ejections_active_.inc();
+      ejections_active_++;
       updateEnforcedEjectionStats(type);
       host_monitors_[host]->eject(time_source_.monotonicTime());
       runCallbacks(host);

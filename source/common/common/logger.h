@@ -60,6 +60,7 @@ namespace Logger {
   FUNCTION(thrift)               \
   FUNCTION(tracing)              \
   FUNCTION(upstream)             \
+  FUNCTION(outlier)              \
   FUNCTION(udp)                  \
   FUNCTION(wasm)
 
