@@ -650,8 +650,8 @@ int ConnectionImpl::onHeadersCompleteBase() {
     absl::string_view encoding = current_header_map_->TransferEncoding()->value().getStringView();
     if (Runtime::runtimeFeatureEnabled(
             "envoy.reloadable_features.reject_unsupported_transfer_encodings") &&
-        encoding != Headers::get().TransferEncodingValues.Identity &&
-        encoding != Headers::get().TransferEncodingValues.Chunked) {
+        !absl::EqualsIgnoreCase(encoding, Headers::get().TransferEncodingValues.Identity) &&
+        !absl::EqualsIgnoreCase(encoding, Headers::get().TransferEncodingValues.Chunked)) {
       error_code_ = Http::Code::NotImplemented;
       sendProtocolError();
       throw CodecProtocolException("http/1.1 protocol error: unsupported transfer encoding");
