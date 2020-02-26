@@ -50,6 +50,15 @@ namespace Wasm {
 
 namespace {
 
+class DeferAfterCallActions {
+public:
+  DeferAfterCallActions(Context* context) : wasm_(context->wasm()) {}
+  ~DeferAfterCallActions() { wasm_->doAfterVmCallActions(); }
+
+private:
+  Wasm* const wasm_;
+};
+
 using HashPolicy = envoy::config::route::v3::RouteAction::HashPolicy;
 
 class SharedData {
@@ -252,6 +261,8 @@ std::string Context::makeRootLogPrefix(absl::string_view vm_id) const {
 
 WasmVm* Context::wasmVm() const { return wasm_->wasm_vm(); }
 Upstream::ClusterManager& Context::clusterManager() const { return wasm_->clusterManager(); }
+
+void Context::addAfterVmCallAction(std::function<void()> f) { wasm_->addAfterVmCallAction(f); }
 
 WasmResult Context::setTickPeriod(std::chrono::milliseconds tick_period) {
   wasm_->setTickPeriod(root_context_id_ ? root_context_id_ : id_, tick_period);
@@ -1046,6 +1057,7 @@ bool Context::isSsl() { return decoder_callbacks_->connection()->ssl() != nullpt
 // Calls into the WASM code.
 //
 bool Context::onStart(absl::string_view vm_configuration, PluginSharedPtr plugin) {
+  DeferAfterCallActions actions(this);
   bool result = 0;
   if (wasm_->on_context_create_) {
     plugin_ = plugin;
@@ -1081,6 +1093,7 @@ bool Context::onConfigure(absl::string_view plugin_configuration, PluginSharedPt
   if (!wasm_->on_configure_) {
     return true;
   }
+  DeferAfterCallActions actions(this);
   configuration_ = plugin_configuration;
   plugin_ = plugin;
   auto result =
@@ -1098,17 +1111,20 @@ std::pair<uint32_t, absl::string_view> Context::getStatus() {
 
 void Context::onTick() {
   if (wasm_->on_tick_) {
+    DeferAfterCallActions actions(this);
     wasm_->on_tick_(this, id_);
   }
 }
 
 void Context::onCreate(uint32_t parent_context_id) {
   if (wasm_->on_context_create_) {
+    DeferAfterCallActions actions(this);
     wasm_->on_context_create_(this, id_, parent_context_id);
   }
 }
 
 Network::FilterStatus Context::onNetworkNewConnection() {
+  DeferAfterCallActions actions(this);
   onCreate(root_context_id_);
   if (!wasm_->on_new_connection_) {
     return Network::FilterStatus::Continue;
@@ -1123,6 +1139,7 @@ Network::FilterStatus Context::onDownstreamData(int data_length, bool end_of_str
   if (!wasm_->on_downstream_data_) {
     return Network::FilterStatus::Continue;
   }
+  DeferAfterCallActions actions(this);
   end_of_stream_ = end_of_stream;
   auto result = wasm_->on_downstream_data_(this, id_, static_cast<uint32_t>(data_length),
                                            static_cast<uint32_t>(end_of_stream));
@@ -1134,6 +1151,7 @@ Network::FilterStatus Context::onUpstreamData(int data_length, bool end_of_strea
   if (!wasm_->on_upstream_data_) {
     return Network::FilterStatus::Continue;
   }
+  DeferAfterCallActions actions(this);
   end_of_stream_ = end_of_stream;
   auto result = wasm_->on_upstream_data_(this, id_, static_cast<uint32_t>(data_length),
                                          static_cast<uint32_t>(end_of_stream));
@@ -1143,12 +1161,14 @@ Network::FilterStatus Context::onUpstreamData(int data_length, bool end_of_strea
 
 void Context::onDownstreamConnectionClose(PeerType peer_type) {
   if (wasm_->on_downstream_connection_close_) {
+    DeferAfterCallActions actions(this);
     wasm_->on_downstream_connection_close_(this, id_, static_cast<uint32_t>(peer_type));
   }
 }
 
 void Context::onUpstreamConnectionClose(PeerType peer_type) {
   if (wasm_->on_upstream_connection_close_) {
+    DeferAfterCallActions actions(this);
     wasm_->on_upstream_connection_close_(this, id_, static_cast<uint32_t>(peer_type));
   }
 }
@@ -1157,6 +1177,7 @@ void Context::onUpstreamConnectionClose(PeerType peer_type) {
 template <typename P> static uint32_t headerSize(const P& p) { return p ? p->size() : 0; }
 
 Http::FilterHeadersStatus Context::onRequestHeaders() {
+  DeferAfterCallActions actions(this);
   onCreate(root_context_id_);
   in_vm_context_created_ = true;
   if (!wasm_->on_request_headers_) {
@@ -1172,6 +1193,7 @@ Http::FilterDataStatus Context::onRequestBody(int body_buffer_length, bool end_o
   if (!wasm_->on_request_body_) {
     return Http::FilterDataStatus::Continue;
   }
+  DeferAfterCallActions actions(this);
   switch (wasm_
               ->on_request_body_(this, id_, static_cast<uint32_t>(body_buffer_length),
                                  static_cast<uint32_t>(end_of_stream))
@@ -1191,6 +1213,7 @@ Http::FilterTrailersStatus Context::onRequestTrailers() {
   if (!wasm_->on_request_trailers_) {
     return Http::FilterTrailersStatus::Continue;
   }
+  DeferAfterCallActions actions(this);
   if (wasm_->on_request_trailers_(this, id_, headerSize(request_trailers_)).u64_ == 0) {
     return Http::FilterTrailersStatus::Continue;
   }
@@ -1201,6 +1224,7 @@ Http::FilterMetadataStatus Context::onRequestMetadata() {
   if (!wasm_->on_request_metadata_) {
     return Http::FilterMetadataStatus::Continue;
   }
+  DeferAfterCallActions actions(this);
   if (wasm_->on_request_metadata_(this, id_, headerSize(request_metadata_)).u64_ == 0) {
     return Http::FilterMetadataStatus::Continue;
   }
@@ -1208,6 +1232,7 @@ Http::FilterMetadataStatus Context::onRequestMetadata() {
 }
 
 Http::FilterHeadersStatus Context::onResponseHeaders() {
+  DeferAfterCallActions actions(this);
   if (!in_vm_context_created_) {
     // If the request is invalid then onRequestHeaders() will not be called and neither will
     // onCreate() then sendLocalReply be called which will call this function. In this case we
@@ -1229,6 +1254,7 @@ Http::FilterDataStatus Context::onResponseBody(int body_buffer_length, bool end_
   if (!wasm_->on_response_body_) {
     return Http::FilterDataStatus::Continue;
   }
+  DeferAfterCallActions actions(this);
   switch (wasm_
               ->on_response_body_(this, id_, static_cast<uint32_t>(body_buffer_length),
                                   static_cast<uint32_t>(end_of_stream))
@@ -1248,6 +1274,7 @@ Http::FilterTrailersStatus Context::onResponseTrailers() {
   if (!wasm_->on_response_trailers_) {
     return Http::FilterTrailersStatus::Continue;
   }
+  DeferAfterCallActions actions(this);
   if (wasm_->on_response_trailers_(this, id_, headerSize(response_trailers_)).u64_ == 0) {
     return Http::FilterTrailersStatus::Continue;
   }
@@ -1258,6 +1285,7 @@ Http::FilterMetadataStatus Context::onResponseMetadata() {
   if (!wasm_->on_response_metadata_) {
     return Http::FilterMetadataStatus::Continue;
   }
+  DeferAfterCallActions actions(this);
   if (wasm_->on_response_metadata_(this, id_, headerSize(response_metadata_)).u64_ == 0) {
     return Http::FilterMetadataStatus::Continue;
   }
@@ -1269,11 +1297,13 @@ void Context::onHttpCallResponse(uint32_t token, uint32_t headers, uint32_t body
   if (!wasm_->on_http_call_response_) {
     return;
   }
+  DeferAfterCallActions actions(this);
   wasm_->on_http_call_response_(this, id_, token, headers, body_size, trailers);
 }
 
 void Context::onQueueReady(uint32_t token) {
   if (wasm_->on_queue_ready_) {
+    DeferAfterCallActions actions(this);
     wasm_->on_queue_ready_(this, id_, token);
   }
 }
@@ -1282,6 +1312,7 @@ void Context::onGrpcCreateInitialMetadata(uint32_t token, Http::HeaderMap& metad
   if (!wasm_->on_grpc_create_initial_metadata_) {
     return;
   }
+  DeferAfterCallActions actions(this);
   grpc_create_initial_metadata_ = &metadata;
   wasm_->on_grpc_create_initial_metadata_(this, id_, token,
                                           headerSize(grpc_create_initial_metadata_));
@@ -1292,6 +1323,7 @@ void Context::onGrpcReceiveInitialMetadata(uint32_t token, Http::HeaderMapPtr&& 
   if (!wasm_->on_grpc_receive_initial_metadata_) {
     return;
   }
+  DeferAfterCallActions actions(this);
   grpc_receive_initial_metadata_ = std::move(metadata);
   wasm_->on_grpc_receive_initial_metadata_(this, id_, token,
                                            headerSize(grpc_receive_initial_metadata_));
@@ -1302,6 +1334,7 @@ void Context::onGrpcReceiveTrailingMetadata(uint32_t token, Http::HeaderMapPtr&&
   if (!wasm_->on_grpc_receive_trailing_metadata_) {
     return;
   }
+  DeferAfterCallActions actions(this);
   grpc_receive_trailing_metadata_ = std::move(metadata);
   wasm_->on_grpc_receive_trailing_metadata_(this, id_, token,
                                             headerSize(grpc_receive_trailing_metadata_));
@@ -1439,6 +1472,7 @@ Context::~Context() {
 Network::FilterStatus Context::onNewConnection() { return onNetworkNewConnection(); };
 
 Network::FilterStatus Context::onData(Buffer::Instance& data, bool end_stream) {
+  DeferAfterCallActions actions(this);
   network_downstream_data_buffer_ = &data;
   auto result = onDownstreamData(data.length(), end_stream);
   network_downstream_data_buffer_ = nullptr;
@@ -1446,6 +1480,7 @@ Network::FilterStatus Context::onData(Buffer::Instance& data, bool end_stream) {
 }
 
 Network::FilterStatus Context::onWrite(Buffer::Instance& data, bool end_stream) {
+  DeferAfterCallActions actions(this);
   network_upstream_data_buffer_ = &data;
   auto result = onUpstreamData(data.length(), end_stream);
   network_upstream_data_buffer_ = nullptr;
@@ -1458,6 +1493,7 @@ Network::FilterStatus Context::onWrite(Buffer::Instance& data, bool end_stream) 
 }
 
 void Context::onEvent(Network::ConnectionEvent event) {
+  DeferAfterCallActions actions(this);
   switch (event) {
   case Network::ConnectionEvent::LocalClose:
     onDownstreamConnectionClose(PeerType::Local);
@@ -1515,6 +1551,7 @@ void Context::onDestroy() {
 }
 
 bool Context::onDone() {
+  DeferAfterCallActions actions(this);
   if (wasm_->on_done_) {
     return wasm_->on_done_(this, id_).u64_ != 0;
   }
@@ -1522,12 +1559,14 @@ bool Context::onDone() {
 }
 
 void Context::onLog() {
+  DeferAfterCallActions actions(this);
   if (wasm_->on_log_) {
     wasm_->on_log_(this, id_);
   }
 }
 
 void Context::onDelete() {
+  DeferAfterCallActions actions(this);
   if (wasm_->on_delete_) {
     wasm_->on_delete_(this, id_);
   }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <deque>
 #include <map>
 #include <memory>
 
@@ -140,6 +141,15 @@ public:
     return true;
   }
 
+  void addAfterVmCallAction(std::function<void()> f) { after_vm_call_actions_.push_back(f); }
+  void doAfterVmCallActions() {
+    while (!after_vm_call_actions_.empty()) {
+      auto f = std::move(after_vm_call_actions_.front());
+      after_vm_call_actions_.pop_front();
+      f();
+    }
+  }
+
 private:
   friend class Context;
   class ShutdownHandle;
@@ -267,6 +277,9 @@ private:
 
   // Foreign Functions.
   absl::flat_hash_map<std::string, WasmForeignFunction> foreign_functions_;
+
+  // Actions to be done after the call into the VM returns.
+  std::deque<std::function<void()>> after_vm_call_actions_;
 };
 using WasmSharedPtr = std::shared_ptr<Wasm>;
 
