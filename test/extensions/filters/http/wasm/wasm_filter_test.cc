@@ -691,7 +691,7 @@ TEST_P(WasmHttpFilterTest, Metadata) {
   filter_->log(&request_headers, nullptr, nullptr, log_stream_info);
 
   const auto& result = request_stream_info_.filterState()->getDataReadOnly<Common::Wasm::WasmState>(
-      "wasm_request_set_key");
+      "wasm.wasm_request_set_key");
   EXPECT_EQ("wasm_request_set_value", result.value());
 }
 
@@ -729,6 +729,8 @@ TEST_F(WasmHttpFilterTest, NullVmResolver) {
               scriptLog_(spdlog::level::debug, Eq(absl::string_view("onRequestHeaders 2"))));
   EXPECT_CALL(*filter_,
               scriptLog_(spdlog::level::info, Eq(absl::string_view("header path /test_context"))));
+
+  root_context_->onTick();
 
   // test outputs should match inputs
   EXPECT_CALL(*filter_, scriptLog_(spdlog::level::warn,

@@ -4,6 +4,7 @@ load(
     "//bazel:envoy_build_system.bzl",
     "envoy_cc_library",
     "envoy_package",
+    "envoy_proto_library",
 )
 
 envoy_package()
@@ -54,6 +55,7 @@ envoy_cc_library(
         "exports.h",
         "foreign.h",
         "wasm.h",
+        "wasm_state.h",
     ],
     deps = [
         ":wasm_vm_interface",
@@ -82,6 +84,10 @@ envoy_cc_library(
     deps = [
         "//include/envoy/stream_info:filter_state_interface",
         "//source/common/protobuf",
+        "//source/common/singleton:const_singleton",
+        "@com_github_google_flatbuffers//:flatbuffers",
+        "@com_google_cel_cpp//eval/public:cel_value",
+        "@com_google_cel_cpp//tools:flatbuffers_backed_impl",
     ],
 )
 
@@ -94,6 +100,7 @@ envoy_cc_library(
         "wasm.cc",
     ],
     deps = [
+        ":declare_property_cc_proto",
         ":wasm_hdr",
         ":wasm_interoperation_lib",
         ":wasm_vm_lib",
@@ -117,4 +124,9 @@ envoy_cc_library(
         "@com_google_cel_cpp//parser",
         "@envoy_api//envoy/config/wasm/v3:pkg_cc_proto",
     ],
+)
+
+envoy_proto_library(
+    name = "declare_property",
+    srcs = ["declare_property.proto"],
 )
