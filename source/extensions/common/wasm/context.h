@@ -306,13 +306,17 @@ public:
                               bool end_stream); // stream only
 
   // CEL evaluation
-  virtual std::vector<const google::api::expr::runtime::CelFunction*>
+  std::vector<const google::api::expr::runtime::CelFunction*>
   FindFunctionOverloads(absl::string_view) const override {
     return {};
   }
-  virtual absl::optional<google::api::expr::runtime::CelValue>
-  FindValue(absl::string_view name, Protobuf::Arena* arena) const override;
-  virtual bool IsPathUnknown(absl::string_view) const override { return false; }
+  absl::optional<google::api::expr::runtime::CelValue>
+  findValue(absl::string_view name, Protobuf::Arena* arena, bool last) const;
+  absl::optional<google::api::expr::runtime::CelValue>
+  FindValue(absl::string_view name, Protobuf::Arena* arena) const override {
+    return findValue(name, arena, false);
+  }
+  bool IsPathUnknown(absl::string_view) const override { return false; }
   const std::vector<google::api::expr::runtime::CelAttributePattern>&
   unknown_attribute_patterns() const override {
     static const std::vector<google::api::expr::runtime::CelAttributePattern> empty;
