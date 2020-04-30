@@ -211,6 +211,7 @@ TEST_P(WasmFilterConfigTest, YamlLoadFromRemoteWASM) {
   cb(filter_callback);
 }
 
+#if 0
 TEST_P(WasmFilterConfigTest, YamlLoadFromRemoteWASMFailOnUncachedThenSucceed) {
   Envoy::Extensions::Common::Wasm::clearCodeCacheForTesting(true);
   const std::string code = TestEnvironment::readFileToStringForTest(TestEnvironment::substitute(
@@ -454,6 +455,7 @@ TEST_P(WasmFilterConfigTest, YamlLoadFromRemoteWASMFailCachedThenSucceed) {
 
   dispatcher_.clearDeferredDeleteList();
 }
+#endif
 
 TEST_P(WasmFilterConfigTest, YamlLoadFromRemoteConnectionReset) {
   const std::string code = TestEnvironment::readFileToStringForTest(TestEnvironment::substitute(
