@@ -68,7 +68,7 @@ TEST(DeferredDeleteTest, DeferredDelete) {
 TEST(DeferredTaskTest, DeferredTask) {
   InSequence s;
   Api::ApiPtr api = Api::createApiForTest();
-  DispatcherPtr dispatcher(api->allocateDispatcher("test_thread"));
+  DispatcherPtr dispatcher(api->allocateDispatcher());
   ReadyWatcher watcher1;
 
   DeferredTaskUtil::deferredRun(*dispatcher, [&watcher1]() -> void { watcher1.ready(); });
