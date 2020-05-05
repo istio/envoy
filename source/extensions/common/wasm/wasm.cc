@@ -1,16 +1,14 @@
 #include "extensions/common/wasm/wasm.h"
 
 #include <stdio.h>
-#include <algorithm>
-#include <chrono>
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <limits>
 #include <memory>
 #include <string>
 
-#include "common/config/remote_data_fetcher.h"
 #include "envoy/common/exception.h"
 #include "envoy/config/wasm/v3/wasm.pb.validate.h"
 #include "envoy/event/deferred_deletable.h"
@@ -23,10 +21,10 @@
 #include "common/buffer/buffer_impl.h"
 #include "common/common/assert.h"
 #include "common/common/base64.h"
-#include "common/config/remote_data_fetcher.h"
 #include "common/common/empty_string.h"
 #include "common/common/enum_to_int.h"
 #include "common/common/logger.h"
+#include "common/config/remote_data_fetcher.h"
 #include "common/http/header_map_impl.h"
 #include "common/http/message_impl.h"
 #include "common/http/utility.h"
@@ -70,6 +68,20 @@ std::string Sha256(absl::string_view data) {
 }
 
 namespace {
+
+#define CREATE_WASM_STATS(COUNTER, GAUGE)                                                          \
+  COUNTER(remote_load_cache_hits)                                                                  \
+  COUNTER(remote_load_cache_negative_hits)                                                         \
+  COUNTER(remote_load_cache_misses)                                                                \
+  COUNTER(remote_load_fetches)                                                                     \
+  COUNTER(remote_load_fetch_successes)                                                             \
+  COUNTER(remote_load_fetch_failures)                                                              \
+  GAUGE(remote_load_cache_entries, NeverImport)
+
+struct CreateWasmStats {
+  Stats::ScopeSharedPtr scope_;
+  CREATE_WASM_STATS(GENERATE_COUNTER_STRUCT, GENERATE_GAUGE_STRUCT)
+};
 
 struct CodeCacheEntry {
   std::string code;
@@ -590,6 +602,11 @@ createWasmInternal(const VmConfig& vm_config, PluginSharedPtr plugin, Stats::Sco
                    std::unique_ptr<Context> root_context_for_testing, CreateWasmCallback&& cb) {
   std::string source, code;
   bool fetch = false;
+  // Tried make_shared. Compiler was having non of it.
+  auto stats_ptr =
+      new CreateWasmStats{scope, CREATE_WASM_STATS(POOL_COUNTER_PREFIX(*scope, "wasm."),
+                                                   POOL_GAUGE_PREFIX(*scope, "wasm."))};
+  auto stats = std::shared_ptr<CreateWasmStats>(std::move(stats_ptr));
   if (vm_config.code().has_remote()) {
     auto now = dispatcher.timeSource().monotonicTime() + cache_time_offset_for_testing;
     source = vm_config.code().remote().http_uri().uri();
@@ -606,12 +623,14 @@ createWasmInternal(const VmConfig& vm_config, PluginSharedPtr plugin, Stats::Sco
         ++it;
       }
     }
+    stats->remote_load_cache_entries_.set(code_cache->size());
     auto it = code_cache->find(vm_config.code().remote().sha256());
     if (it != code_cache->end()) {
       it->second.use_time = now;
       if (it->second.in_progress) {
         ENVOY_LOG_TO_LOGGER(Envoy::Logger::Registry::getLog(Envoy::Logger::Id::wasm), warn,
                             "createWasm: failed to load (in progress) from {}", source);
+        stats->remote_load_cache_misses_.inc();
         throw WasmException(
             fmt::format("Failed to load WASM code (fetch in progress) from {}", source));
       }
@@ -619,6 +638,7 @@ createWasmInternal(const VmConfig& vm_config, PluginSharedPtr plugin, Stats::Sco
       if (code.empty()) {
         if (now - it->second.fetch_time <
             std::chrono::seconds(CODE_CACHE_SECONDS_NEGATIVE_CACHING)) {
+          stats->remote_load_cache_negative_hits_.inc();
           ENVOY_LOG_TO_LOGGER(Envoy::Logger::Registry::getLog(Envoy::Logger::Id::wasm), warn,
                               "createWasm: failed to load (cached) from {}", source);
           throw WasmException(fmt::format("Failed to load WASM code (cached) from {}", source));
@@ -626,12 +646,16 @@ createWasmInternal(const VmConfig& vm_config, PluginSharedPtr plugin, Stats::Sco
         fetch = true; // Fetch failed, retry.
         it->second.in_progress = true;
         it->second.fetch_time = now;
+      } else {
+        stats->remote_load_cache_hits_.inc();
       }
     } else {
       fetch = true; // Not in cache, fetch.
       auto& e = (*code_cache)[vm_config.code().remote().sha256()];
       e.in_progress = true;
       e.use_time = e.fetch_time = now;
+      stats->remote_load_cache_entries_.set(code_cache->size());
+      stats->remote_load_cache_misses_.inc();
     }
   } else if (vm_config.code().has_local()) {
     code = Config::DataSource::read(vm_config.code().local(), true, api);
@@ -641,7 +665,7 @@ createWasmInternal(const VmConfig& vm_config, PluginSharedPtr plugin, Stats::Sco
 
   auto complete_cb =
       [cb, vm_config, plugin, scope, &cluster_manager, &dispatcher, &lifecycle_notifier, source,
-       root_context_for_testing_ptr = root_context_for_testing.release()](std::string code) {
+       stats, root_context_for_testing_ptr = root_context_for_testing.release()](std::string code) {
         auto root_context = std::unique_ptr<Context>(root_context_for_testing_ptr);
 
         std::string vm_key = Sha256(vm_config.vm_id());
@@ -683,8 +707,9 @@ createWasmInternal(const VmConfig& vm_config, PluginSharedPtr plugin, Stats::Sco
       };
 
   if (fetch) {
+    stats->remote_load_fetches_.inc();
     auto holder = std::make_shared<std::unique_ptr<Event::DeferredDeletable>>();
-    auto fetch_callback = [vm_config, complete_cb, source, &dispatcher,
+    auto fetch_callback = [vm_config, complete_cb, source, &dispatcher, stats,
                            holder](const std::string& code) {
       {
         std::lock_guard<std::mutex> guard(code_cache_mutex);
@@ -692,6 +717,12 @@ createWasmInternal(const VmConfig& vm_config, PluginSharedPtr plugin, Stats::Sco
         e.in_progress = false;
         e.code = code;
       }
+      if (code.empty()) {
+        stats->remote_load_fetch_failures_.inc();
+      } else {
+        stats->remote_load_fetch_successes_.inc();
+      }
+      stats->remote_load_cache_entries_.set(code_cache->size());
       if (!fail_if_code_not_cached) {
         if (code.empty()) {
           throw WasmException(
