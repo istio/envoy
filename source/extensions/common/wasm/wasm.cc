@@ -73,7 +73,6 @@ namespace {
   COUNTER(remote_load_cache_hits)                                                                  \
   COUNTER(remote_load_cache_negative_hits)                                                         \
   COUNTER(remote_load_cache_misses)                                                                \
-  COUNTER(remote_load_fetches)                                                                     \
   COUNTER(remote_load_fetch_successes)                                                             \
   COUNTER(remote_load_fetch_failures)                                                              \
   GAUGE(remote_load_cache_entries, NeverImport)
@@ -712,10 +711,6 @@ createWasmInternal(const VmConfig& vm_config, PluginSharedPtr plugin, Stats::Sco
       };
 
   if (fetch) {
-    {
-      std::lock_guard<std::mutex> guard(code_cache_mutex);
-      create_wasm_stats->remote_load_fetches_.inc();
-    }
     auto holder = std::make_shared<std::unique_ptr<Event::DeferredDeletable>>();
     auto fetch_callback = [vm_config, complete_cb, source, &dispatcher, scope,
                            holder](const std::string& code) {
