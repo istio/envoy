@@ -547,6 +547,7 @@ TEST_P(WasmCommonTest, RemoteCode) {
   wasm->configure(root_context, plugin, "done");
   dispatcher->run(Event::Dispatcher::RunType::NonBlock);
   dispatcher->clearDeferredDeleteList();
+  clearCodeCacheForTesting(false);
 }
 
 TEST_P(WasmCommonTest, RemoteCodeMultipleRetry) {
@@ -644,6 +645,7 @@ TEST_P(WasmCommonTest, RemoteCodeMultipleRetry) {
   wasm->configure(root_context, plugin, "done");
   dispatcher->run(Event::Dispatcher::RunType::NonBlock);
   dispatcher->clearDeferredDeleteList();
+  clearCodeCacheForTesting(false);
 }
 
 } // namespace Wasm
