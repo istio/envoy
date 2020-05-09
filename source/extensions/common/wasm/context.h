@@ -331,6 +331,8 @@ public:
 
   void addAfterVmCallAction(std::function<void()> f);
 
+  void setInVmContextCreatedForTesting() { in_vm_context_created_ = true; }
+
 protected:
   friend class Wasm;
 

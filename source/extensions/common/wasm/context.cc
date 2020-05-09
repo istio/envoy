@@ -1116,6 +1116,7 @@ bool Context::onStart(absl::string_view vm_configuration, PluginSharedPtr plugin
     wasm_->on_context_create_(this, id_, 0);
     plugin_.reset();
   }
+  in_vm_context_created_ = true;
   if (wasm_->on_vm_start_) {
     configuration_ = vm_configuration;
     plugin_ = plugin;
@@ -1178,6 +1179,7 @@ void Context::onCreate(uint32_t parent_context_id) {
 Network::FilterStatus Context::onNetworkNewConnection() {
   DeferAfterCallActions actions(this);
   onCreate(root_context_id_);
+  in_vm_context_created_ = true;
   if (!wasm_->on_new_connection_) {
     return Network::FilterStatus::Continue;
   }
@@ -1188,7 +1190,7 @@ Network::FilterStatus Context::onNetworkNewConnection() {
 }
 
 Network::FilterStatus Context::onDownstreamData(int data_length, bool end_of_stream) {
-  if (!wasm_->on_downstream_data_) {
+  if (!in_vm_context_created_ || !wasm_->on_downstream_data_) {
     return Network::FilterStatus::Continue;
   }
   DeferAfterCallActions actions(this);
@@ -1200,7 +1202,7 @@ Network::FilterStatus Context::onDownstreamData(int data_length, bool end_of_str
 }
 
 Network::FilterStatus Context::onUpstreamData(int data_length, bool end_of_stream) {
-  if (!wasm_->on_upstream_data_) {
+  if (!in_vm_context_created_ || !wasm_->on_upstream_data_) {
     return Network::FilterStatus::Continue;
   }
   DeferAfterCallActions actions(this);
@@ -1212,7 +1214,7 @@ Network::FilterStatus Context::onUpstreamData(int data_length, bool end_of_strea
 }
 
 void Context::onDownstreamConnectionClose(PeerType peer_type) {
-  if (wasm_->on_downstream_connection_close_) {
+  if (in_vm_context_created_ && wasm_->on_downstream_connection_close_) {
     DeferAfterCallActions actions(this);
     wasm_->on_downstream_connection_close_(this, id_, static_cast<uint32_t>(peer_type));
   }
@@ -1225,7 +1227,7 @@ void Context::onDownstreamConnectionClose(PeerType peer_type) {
 }
 
 void Context::onUpstreamConnectionClose(PeerType peer_type) {
-  if (wasm_->on_upstream_connection_close_) {
+  if (in_vm_context_created_ && wasm_->on_upstream_connection_close_) {
     DeferAfterCallActions actions(this);
     wasm_->on_upstream_connection_close_(this, id_, static_cast<uint32_t>(peer_type));
   }
@@ -1252,7 +1254,7 @@ Http::FilterHeadersStatus Context::onRequestHeaders() {
 }
 
 Http::FilterDataStatus Context::onRequestBody(bool end_of_stream) {
-  if (!wasm_->on_request_body_) {
+  if (!in_vm_context_created_ || !wasm_->on_request_body_) {
     return Http::FilterDataStatus::Continue;
   }
   DeferAfterCallActions actions(this);
@@ -1278,7 +1280,7 @@ Http::FilterDataStatus Context::onRequestBody(bool end_of_stream) {
 }
 
 Http::FilterTrailersStatus Context::onRequestTrailers() {
-  if (!wasm_->on_request_trailers_) {
+  if (!in_vm_context_created_ || !wasm_->on_request_trailers_) {
     return Http::FilterTrailersStatus::Continue;
   }
   DeferAfterCallActions actions(this);
@@ -1289,7 +1291,7 @@ Http::FilterTrailersStatus Context::onRequestTrailers() {
 }
 
 Http::FilterMetadataStatus Context::onRequestMetadata() {
-  if (!wasm_->on_request_metadata_) {
+  if (!in_vm_context_created_ || !wasm_->on_request_metadata_) {
     return Http::FilterMetadataStatus::Continue;
   }
   DeferAfterCallActions actions(this);
@@ -1319,7 +1321,7 @@ Http::FilterHeadersStatus Context::onResponseHeaders() {
 }
 
 Http::FilterDataStatus Context::onResponseBody(bool end_of_stream) {
-  if (!wasm_->on_response_body_) {
+  if (!in_vm_context_created_ || !wasm_->on_response_body_) {
     return Http::FilterDataStatus::Continue;
   }
   DeferAfterCallActions actions(this);
@@ -1345,7 +1347,7 @@ Http::FilterDataStatus Context::onResponseBody(bool end_of_stream) {
 }
 
 Http::FilterTrailersStatus Context::onResponseTrailers() {
-  if (!wasm_->on_response_trailers_) {
+  if (!in_vm_context_created_ || !wasm_->on_response_trailers_) {
     return Http::FilterTrailersStatus::Continue;
   }
   DeferAfterCallActions actions(this);
@@ -1356,7 +1358,7 @@ Http::FilterTrailersStatus Context::onResponseTrailers() {
 }
 
 Http::FilterMetadataStatus Context::onResponseMetadata() {
-  if (!wasm_->on_response_metadata_) {
+  if (!in_vm_context_created_ || !wasm_->on_response_metadata_) {
     return Http::FilterMetadataStatus::Continue;
   }
   DeferAfterCallActions actions(this);
@@ -1626,7 +1628,7 @@ void Context::onDestroy() {
 
 bool Context::onDone() {
   DeferAfterCallActions actions(this);
-  if (wasm_->on_done_) {
+  if (in_vm_context_created_ && wasm_->on_done_) {
     return wasm_->on_done_(this, id_).u64_ != 0;
   }
   return true;
@@ -1634,14 +1636,14 @@ bool Context::onDone() {
 
 void Context::onLog() {
   DeferAfterCallActions actions(this);
-  if (wasm_->on_log_) {
+  if (in_vm_context_created_ && wasm_->on_log_) {
     wasm_->on_log_(this, id_);
   }
 }
 
 void Context::onDelete() {
   DeferAfterCallActions actions(this);
-  if (wasm_->on_delete_) {
+  if (in_vm_context_created_ && wasm_->on_delete_) {
     wasm_->on_delete_(this, id_);
   }
 }
