@@ -184,7 +184,7 @@ TEST_P(WasmTest, DivByZero) {
   auto context = std::make_unique<TestContext>(wasm.get());
   EXPECT_CALL(*context, scriptLog_(spdlog::level::err, Eq("before div by zero")));
   EXPECT_TRUE(wasm->initialize(code, false));
-  wasm->setContext(context.get());
+  context->setInVmContextCreatedForTesting();
 
   if (GetParam() == "v8") {
     EXPECT_THROW_WITH_MESSAGE(
@@ -388,6 +388,7 @@ TEST_P(WasmTest, StatsHighLevel) {
       "{{ test_rundir }}/test/extensions/wasm/test_data/stats_cpp.wasm"));
   EXPECT_FALSE(code.empty());
   auto context = std::make_unique<TestContext>(wasm.get());
+  context->setInVmContextCreatedForTesting();
 
   EXPECT_CALL(*context, scriptLog_(spdlog::level::trace, Eq("get counter = 1")));
   EXPECT_CALL(*context, scriptLog_(spdlog::level::debug, Eq("get counter = 2")));

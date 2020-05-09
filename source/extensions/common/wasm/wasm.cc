@@ -1699,6 +1699,7 @@ void Context::onStart(absl::string_view root_id, absl::string_view vm_configurat
     auto config_addr = wasm_->copyString(vm_configuration);
     wasm_->onStart_(this, id_, root_id_addr, root_id.size(), config_addr, vm_configuration.size());
   }
+  in_vm_context_created_ = true;
 }
 
 bool Context::validateConfiguration(absl::string_view configuration) {
@@ -1725,6 +1726,7 @@ void Context::onCreate(uint32_t root_context_id) {
 
 Network::FilterStatus Context::onNetworkNewConnection() {
   onCreate(root_context_id_);
+  in_vm_context_created_ = true;
   if (!wasm_->onNewConnection_) {
     return Network::FilterStatus::Continue;
   }
@@ -1735,7 +1737,7 @@ Network::FilterStatus Context::onNetworkNewConnection() {
 }
 
 Network::FilterStatus Context::onDownstreamData(int data_length, bool end_of_stream) {
-  if (!wasm_->onDownstreamData_) {
+  if (!in_vm_context_created_ || !wasm_->onDownstreamData_) {
     return Network::FilterStatus::Continue;
   }
   auto result = wasm_->onDownstreamData_(this, id_, static_cast<uint32_t>(data_length),
@@ -1745,7 +1747,7 @@ Network::FilterStatus Context::onDownstreamData(int data_length, bool end_of_str
 }
 
 Network::FilterStatus Context::onUpstreamData(int data_length, bool end_of_stream) {
-  if (!wasm_->onUpstreamData_) {
+  if (!in_vm_context_created_ || !wasm_->onUpstreamData_) {
     return Network::FilterStatus::Continue;
   }
   auto result = wasm_->onUpstreamData_(this, id_, static_cast<uint32_t>(data_length),
@@ -1755,13 +1757,13 @@ Network::FilterStatus Context::onUpstreamData(int data_length, bool end_of_strea
 }
 
 void Context::onDownstreamConnectionClose(PeerType peer_type) {
-  if (wasm_->onDownstreamConnectionClose_) {
+  if (in_vm_context_created_ && wasm_->onDownstreamConnectionClose_) {
     wasm_->onDownstreamConnectionClose_(this, id_, static_cast<uint32_t>(peer_type));
   }
 }
 
 void Context::onUpstreamConnectionClose(PeerType peer_type) {
-  if (wasm_->onUpstreamConnectionClose_) {
+  if (in_vm_context_created_ && wasm_->onUpstreamConnectionClose_) {
     wasm_->onUpstreamConnectionClose_(this, id_, static_cast<uint32_t>(peer_type));
   }
 }
@@ -1785,7 +1787,7 @@ Http::FilterHeadersStatus Context::onRequestHeaders() {
 }
 
 Http::FilterDataStatus Context::onRequestBody(int body_buffer_length, bool end_of_stream) {
-  if (!wasm_->onRequestBody_) {
+  if (!in_vm_context_created_ || !wasm_->onRequestBody_) {
     return Http::FilterDataStatus::Continue;
   }
   switch (wasm_
@@ -1804,7 +1806,7 @@ Http::FilterDataStatus Context::onRequestBody(int body_buffer_length, bool end_o
 }
 
 Http::FilterTrailersStatus Context::onRequestTrailers() {
-  if (!wasm_->onRequestTrailers_) {
+  if (!in_vm_context_created_ || !wasm_->onRequestTrailers_) {
     return Http::FilterTrailersStatus::Continue;
   }
   if (wasm_->onRequestTrailers_(this, id_).u64_ == 0) {
@@ -1814,7 +1816,7 @@ Http::FilterTrailersStatus Context::onRequestTrailers() {
 }
 
 Http::FilterMetadataStatus Context::onRequestMetadata() {
-  if (!wasm_->onRequestMetadata_) {
+  if (!in_vm_context_created_ || !wasm_->onRequestMetadata_) {
     return Http::FilterMetadataStatus::Continue;
   }
   if (wasm_->onRequestMetadata_(this, id_).u64_ == 0) {
@@ -1842,7 +1844,7 @@ Http::FilterHeadersStatus Context::onResponseHeaders() {
 }
 
 Http::FilterDataStatus Context::onResponseBody(int body_buffer_length, bool end_of_stream) {
-  if (!wasm_->onResponseBody_) {
+  if (!in_vm_context_created_ || !wasm_->onResponseBody_) {
     return Http::FilterDataStatus::Continue;
   }
   switch (wasm_
@@ -1861,7 +1863,7 @@ Http::FilterDataStatus Context::onResponseBody(int body_buffer_length, bool end_
 }
 
 Http::FilterTrailersStatus Context::onResponseTrailers() {
-  if (!wasm_->onResponseTrailers_) {
+  if (!in_vm_context_created_ || !wasm_->onResponseTrailers_) {
     return Http::FilterTrailersStatus::Continue;
   }
   if (wasm_->onResponseTrailers_(this, id_).u64_ == 0) {
@@ -1871,7 +1873,7 @@ Http::FilterTrailersStatus Context::onResponseTrailers() {
 }
 
 Http::FilterMetadataStatus Context::onResponseMetadata() {
-  if (!wasm_->onResponseMetadata_) {
+  if (!in_vm_context_created_ || !wasm_->onResponseMetadata_) {
     return Http::FilterMetadataStatus::Continue;
   }
   if (wasm_->onResponseMetadata_(this, id_).u64_ == 0) {
@@ -2445,19 +2447,19 @@ void Context::onDestroy() {
 }
 
 void Context::onDone() {
-  if (wasm_->onDone_) {
+  if (in_vm_context_created_ && wasm_->onDone_) {
     wasm_->onDone_(this, id_);
   }
 }
 
 void Context::onLog() {
-  if (wasm_->onLog_) {
+  if (in_vm_context_created_ && wasm_->onLog_) {
     wasm_->onLog_(this, id_);
   }
 }
 
 void Context::onDelete() {
-  if (wasm_->onDelete_) {
+  if (in_vm_context_created_ && wasm_->onDelete_) {
     wasm_->onDelete_(this, id_);
   }
 }

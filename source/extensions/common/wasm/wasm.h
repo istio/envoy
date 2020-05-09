@@ -413,6 +413,8 @@ public:
   // Connection
   virtual bool isSsl();
 
+  void setInVmContextCreatedForTesting() { in_vm_context_created_ = true; }
+
 protected:
   friend class Wasm;
   friend struct AsyncClientHandler;
