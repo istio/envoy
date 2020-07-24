@@ -113,7 +113,7 @@ private:
   bool forward_queries_;
   uint64_t retry_count_;
   AddressConstPtrVec resolvers_;
-  std::chrono::milliseconds resolver_timeout_;
+  std::chrono::milliseconds resolver_timeout_{1000};
   Runtime::RandomGenerator& random_;
   uint64_t max_pending_lookups_;
 };
