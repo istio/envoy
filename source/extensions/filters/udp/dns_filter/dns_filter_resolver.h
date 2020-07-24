@@ -23,9 +23,7 @@ public:
                     uint64_t max_pending_lookups)
       : timeout_(timeout), dispatcher_(dispatcher),
         resolver_(dispatcher.createDnsResolver(resolvers, false /* use_tcp_for_dns_lookups */)),
-        callback_(callback), max_pending_lookups_(max_pending_lookups) {
-    ENVOY_LOG_MISC(debug, "lambdai: dns filter resolve timeout in ms is {}", timeout.count());
-  }
+        callback_(callback), max_pending_lookups_(max_pending_lookups) {}
   /**
    * @brief entry point to resolve the name in a DnsQueryRecord
    *
