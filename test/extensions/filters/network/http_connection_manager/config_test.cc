@@ -1936,7 +1936,7 @@ http_filters:
     - type.googleapis.com/envoy.config.filter.http.health_check.v2.HealthCheck
 - name: envoy.filters.http.router
   )EOF";
-  HttpConnectionManagerConfig config(parseHttpConnectionManagerFromYaml(yaml_string), context_,
+  HttpConnectionManagerConfig config(parseHttpConnectionManagerFromV2Yaml(yaml_string), context_,
                                      date_provider_, route_config_provider_manager_,
                                      scoped_routes_config_provider_manager_, http_tracer_manager_,
                                      filter_config_provider_manager_);
