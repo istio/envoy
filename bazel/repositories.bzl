@@ -426,7 +426,15 @@ def _com_github_zlib_ng_zlib_ng():
     )
 
 def _com_google_cel_cpp():
-    _repository_impl("com_google_cel_cpp")
+    _repository_impl(
+        name = "com_google_cel_cpp",
+        patch_args = ["-p1"],
+        # Patches to remove "fast" protobuf-internal access
+        # The patch can be removed when the "fast" access is safe to be enabled back.
+        # This requires public visibility of Reflection::LookupMapValue in protobuf and
+        # any release of cel-cpp after 10/27/2020.
+        patches = ["@envoy//bazel:cel-cpp.patch"],
+    )
     _repository_impl("rules_antlr")
     location = _get_location("antlr4_runtimes")
     http_archive(
