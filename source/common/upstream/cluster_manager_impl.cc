@@ -417,31 +417,7 @@ void ClusterManagerImpl::onClusterInit(Cluster& cluster) {
   // been setup for cross-thread updates to avoid needless updates during initialization. The order
   // of operations here is important. We start by initializing the thread aware load balancer if
   // needed. This must happen first so cluster updates are heard first by the load balancer.
-  // Also, it assures that all of clusters which this function is called should be always active.
-  auto cluster_data = warming_clusters_.find(cluster.info()->name());
-  // We have a situation that clusters will be immediately active, such as static and primary
-  // cluster. So we must have this prevention logic here.
-  if (cluster_data != warming_clusters_.end()) {
-    Network::TransportSocketFactory& factory =
-        cluster.info()->transportSocketMatcher().resolve(&cluster.info()->metadata()).factory_;
-    // If there is no secret entity, currently supports only TLS Certificate and Validation
-    // Context, when it failed to extract them via SDS, it will fail to change cluster status from
-    // warming to active. In current implementation, there is no strategy to activate clusters
-    // which failed to initialize at once.
-    // TODO(shikugawa): To implement to be available by keeping warming after no-available secret
-    // entity behavior occurred. And remove
-    // `envoy.reloadable_features.cluster_keep_warming_no_secret_entity` runtime feature flag.
-    const bool keep_warming_enabled = Runtime::runtimeFeatureEnabled(
-        "envoy.reloadable_features.cluster_keep_warming_no_secret_entity");
-    if (!factory.isReady() && keep_warming_enabled) {
-      ENVOY_LOG(warn, "Failed to activate {}", cluster.info()->name());
-      return;
-    }
-    clusterWarmingToActive(cluster.info()->name());
-    updateClusterCounts();
-  }
-  cluster_data = active_clusters_.find(cluster.info()->name());
-
+  auto cluster_data = active_clusters_.find(cluster.info()->name());
   if (cluster_data->second->thread_aware_lb_ != nullptr) {
     cluster_data->second->thread_aware_lb_->initialize();
   }
@@ -611,6 +587,17 @@ bool ClusterManagerImpl::addOrUpdateCluster(const envoy::config::cluster::v3::Cl
       // The following init manager remove call is a NOP in the case we are already initialized.
       // It's just kept here to avoid additional logic.
       init_helper_.removeCluster(*existing_active_cluster->second->cluster_);
+    } else {
+      // Validate that warming clusters are not added to the init_helper_.
+      // NOTE: This loop is compiled out in optimized builds.
+      for (const std::list<Cluster*>& cluster_list :
+           {std::cref(init_helper_.primary_init_clusters_),
+            std::cref(init_helper_.secondary_init_clusters_)}) {
+        ASSERT(!std::any_of(cluster_list.begin(), cluster_list.end(),
+                            [&existing_warming_cluster](Cluster* cluster) {
+                              return existing_warming_cluster->second->cluster_.get() == cluster;
+                            }));
+      }
     }
     cm_stats_.cluster_modified_.inc();
   } else {
@@ -627,37 +614,38 @@ bool ClusterManagerImpl::addOrUpdateCluster(const envoy::config::cluster::v3::Cl
   //       the future we may decide to undergo a refactor to unify the logic but the effort/risk to
   //       do that right now does not seem worth it given that the logic is generally pretty clean
   //       and easy to understand.
-  const bool all_clusters_initialized =
-      init_helper_.state() == ClusterManagerInitHelper::State::AllClustersInitialized;
-  loadCluster(cluster, version_info, true, warming_clusters_);
-  auto& cluster_entry = warming_clusters_.at(cluster_name);
-  if (!all_clusters_initialized) {
+  const bool use_active_map =
+      init_helper_.state() != ClusterManagerInitHelper::State::AllClustersInitialized;
+  loadCluster(cluster, version_info, true, use_active_map ? active_clusters_ : warming_clusters_);
+
+  if (use_active_map) {
     ENVOY_LOG(debug, "add/update cluster {} during init", cluster_name);
+    auto& cluster_entry = active_clusters_.at(cluster_name);
     createOrUpdateThreadLocalCluster(*cluster_entry);
     init_helper_.addCluster(*cluster_entry->cluster_);
   } else {
+    auto& cluster_entry = warming_clusters_.at(cluster_name);
     ENVOY_LOG(debug, "add/update cluster {} starting warming", cluster_name);
     cluster_entry->cluster_->initialize([this, cluster_name] {
+      auto warming_it = warming_clusters_.find(cluster_name);
+      auto& cluster_entry = *warming_it->second;
+
+      // If the cluster is being updated, we need to cancel any pending merged updates.
+      // Otherwise, applyUpdates() will fire with a dangling cluster reference.
+      updates_map_.erase(cluster_name);
+
+      active_clusters_[cluster_name] = std::move(warming_it->second);
+      warming_clusters_.erase(warming_it);
+
       ENVOY_LOG(debug, "warming cluster {} complete", cluster_name);
-      auto state_changed_cluster_entry = warming_clusters_.find(cluster_name);
-      createOrUpdateThreadLocalCluster(*state_changed_cluster_entry->second);
-      onClusterInit(*state_changed_cluster_entry->second->cluster_);
+      createOrUpdateThreadLocalCluster(cluster_entry);
+      onClusterInit(*cluster_entry.cluster_);
+      updateClusterCounts();
     });
   }
 
+  updateClusterCounts();
   return true;
-}
-
-void ClusterManagerImpl::clusterWarmingToActive(const std::string& cluster_name) {
-  auto warming_it = warming_clusters_.find(cluster_name);
-  ASSERT(warming_it != warming_clusters_.end());
-
-  // If the cluster is being updated, we need to cancel any pending merged updates.
-  // Otherwise, applyUpdates() will fire with a dangling cluster reference.
-  updates_map_.erase(cluster_name);
-
-  active_clusters_[cluster_name] = std::move(warming_it->second);
-  warming_clusters_.erase(warming_it);
 }
 
 void ClusterManagerImpl::createOrUpdateThreadLocalCluster(ClusterData& cluster) {
@@ -714,7 +702,6 @@ bool ClusterManagerImpl::removeCluster(const std::string& cluster_name) {
   if (existing_warming_cluster != warming_clusters_.end() &&
       existing_warming_cluster->second->added_via_api_) {
     removed = true;
-    init_helper_.removeCluster(*existing_warming_cluster->second->cluster_);
     warming_clusters_.erase(existing_warming_cluster);
     ENVOY_LOG(info, "removing warming cluster {}", cluster_name);
   }
@@ -817,9 +804,7 @@ void ClusterManagerImpl::updateClusterCounts() {
   // Once cluster is warmed up, CDS is resumed, and ACK is sent to ADS, providing a
   // signal to ADS to proceed with RDS updates.
   // If we're in the middle of shutting down (ads_mux_ already gone) then this is irrelevant.
-  const bool all_clusters_initialized =
-      init_helper_.state() == ClusterManagerInitHelper::State::AllClustersInitialized;
-  if (all_clusters_initialized && ads_mux_) {
+  if (ads_mux_) {
     const auto type_urls = Config::getAllVersionTypeUrls<envoy::config::cluster::v3::Cluster>();
     const uint64_t previous_warming = cm_stats_.warming_clusters_.value();
     if (previous_warming == 0 && !warming_clusters_.empty()) {

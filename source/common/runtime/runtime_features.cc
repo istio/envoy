@@ -111,8 +111,6 @@ constexpr const char* disabled_runtime_features[] = {
     "envoy.reloadable_features.new_tcp_connection_pool",
     // Sentinel and test flag.
     "envoy.reloadable_features.test_feature_false",
-    // The cluster which can't extract secret entity by SDS to be warming and never activate.
-    "envoy.reloadable_features.cluster_keep_warming_no_secret_entity",
 };
 
 RuntimeFeatures::RuntimeFeatures() {

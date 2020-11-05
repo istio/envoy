@@ -95,7 +95,6 @@ public:
   MOCK_METHOD(bool, allowRenegotiation, (), (const));
   MOCK_METHOD(size_t, maxSessionKeys, (), (const));
   MOCK_METHOD(const std::string&, signingAlgorithmsForTest, (), (const));
-  MOCK_METHOD(bool, isSecretReady, (), (const));
 };
 
 class MockServerContextConfig : public ServerContextConfig {
