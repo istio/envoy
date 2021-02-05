@@ -126,4 +126,6 @@ else
   echo "Skip setting up Envoy Filter Example."
 fi
 
-export ENVOY_BUILD_FILTER_EXAMPLE="${FILTER_WORKSPACE_SET:-0}"
+# https://github.com/istio/istio/issues/30484
+# Don't build the filter example.
+export ENVOY_BUILD_FILTER_EXAMPLE=0
