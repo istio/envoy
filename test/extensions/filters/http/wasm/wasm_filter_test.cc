@@ -548,11 +548,11 @@ TEST_P(WasmHttpFilterTest, AccessLog) {
   EXPECT_CALL(filter(),
               log_(spdlog::level::debug, Eq(absl::string_view("onRequestHeaders 2 headers"))));
   EXPECT_CALL(filter(), log_(spdlog::level::info, Eq(absl::string_view("header path /"))));
-  EXPECT_CALL(filter(), log_(spdlog::level::warn, Eq(absl::string_view("onLog 2 /"))));
+  EXPECT_CALL(filter(), log_(spdlog::level::warn, Eq(absl::string_view("onLog 2 / 200"))));
   EXPECT_CALL(filter(), log_(spdlog::level::warn, Eq(absl::string_view("onDone 2"))));
 
   Http::TestRequestHeaderMapImpl request_headers{{":path", "/"}};
-  Http::TestResponseHeaderMapImpl response_headers{};
+  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"}};
   Http::TestResponseTrailerMapImpl response_trailers{};
   EXPECT_EQ(Http::FilterHeadersStatus::Continue, filter().decodeHeaders(request_headers, false));
   filter().continueStream(proxy_wasm::WasmStreamType::Response);
@@ -562,15 +562,31 @@ TEST_P(WasmHttpFilterTest, AccessLog) {
   filter().onDestroy();
 }
 
+TEST_P(WasmHttpFilterTest, AccessLogClientDisconnected) {
+  setupTest("", "headers");
+  setupFilter();
+  EXPECT_CALL(filter(),
+              log_(spdlog::level::debug, Eq(absl::string_view("onRequestHeaders 2 headers"))));
+  EXPECT_CALL(filter(), log_(spdlog::level::info, Eq(absl::string_view("header path /"))));
+  EXPECT_CALL(filter(), log_(spdlog::level::warn, Eq(absl::string_view("onLog 2 / "))));
+  EXPECT_CALL(filter(), log_(spdlog::level::warn, Eq(absl::string_view("onDone 2"))));
+
+  Http::TestRequestHeaderMapImpl request_headers{{":path", "/"}};
+  EXPECT_EQ(Http::FilterHeadersStatus::Continue, filter().decodeHeaders(request_headers, false));
+  StreamInfo::MockStreamInfo log_stream_info;
+  filter().log(&request_headers, nullptr, nullptr, log_stream_info);
+  filter().onDestroy();
+}
+
 TEST_P(WasmHttpFilterTest, AccessLogCreate) {
   setupTest("", "headers");
   setupFilter();
-  EXPECT_CALL(filter(), log_(spdlog::level::warn, Eq(absl::string_view("onLog 2 /"))));
+  EXPECT_CALL(filter(), log_(spdlog::level::warn, Eq(absl::string_view("onLog 2 / 200"))));
   EXPECT_CALL(filter(), log_(spdlog::level::warn, Eq(absl::string_view("onDone 2"))));
 
   StreamInfo::MockStreamInfo log_stream_info;
   Http::TestRequestHeaderMapImpl request_headers{{":path", "/"}};
-  Http::TestResponseHeaderMapImpl response_headers{};
+  Http::TestResponseHeaderMapImpl response_headers{{":status", "200"}};
   Http::TestResponseTrailerMapImpl response_trailers{};
   filter().log(&request_headers, &response_headers, &response_trailers, log_stream_info);
   filter().onDestroy();
@@ -668,14 +684,10 @@ TEST_P(WasmHttpFilterTest, StopAndResumeViaAsyncCall) {
 }
 
 TEST_P(WasmHttpFilterTest, AsyncCallBadCall) {
-  if (std::get<1>(GetParam()) == "rust") {
-    // TODO(PiotrSikora): The Rust SDK does not support end_of_stream in on_http_request_headers.
-    return;
-  }
   setupTest("async_call");
   setupFilter();
 
-  Http::TestRequestHeaderMapImpl request_headers{{":path", "/"}};
+  Http::TestRequestHeaderMapImpl request_headers{{":path", "/bad"}};
   Http::MockAsyncClientRequest request(&cluster_manager_.thread_local_cluster_.async_client_);
   cluster_manager_.initializeThreadLocalClusters({"cluster"});
   EXPECT_CALL(cluster_manager_.thread_local_cluster_, httpAsyncClient());
@@ -687,7 +699,34 @@ TEST_P(WasmHttpFilterTest, AsyncCallBadCall) {
             return nullptr;
           }));
 
-  EXPECT_EQ(Http::FilterHeadersStatus::Continue, filter().decodeHeaders(request_headers, true));
+  EXPECT_CALL(filter(), log_(spdlog::level::info, Eq("async_call rejected")));
+  EXPECT_EQ(Http::FilterHeadersStatus::StopAllIterationAndWatermark,
+            filter().decodeHeaders(request_headers, false));
+}
+
+TEST_P(WasmHttpFilterTest, AsyncCallBadCluster) {
+  setupTest("async_call");
+  setupFilter();
+
+  Http::TestRequestHeaderMapImpl request_headers{{":path", "/bad"}};
+  Http::MockAsyncClientRequest request(&cluster_manager_.thread_local_cluster_.async_client_);
+  cluster_manager_.initializeThreadLocalClusters({"cluster"});
+  EXPECT_CALL(cluster_manager_.thread_local_cluster_, httpAsyncClient());
+  EXPECT_CALL(cluster_manager_.thread_local_cluster_.async_client_, send_(_, _, _))
+      .WillOnce(
+          Invoke([&](Http::RequestMessagePtr&, Http::AsyncClient::Callbacks& cb,
+                     const Http::AsyncClient::RequestOptions&) -> Http::AsyncClient::Request* {
+            Http::ResponseMessagePtr response(
+                new Http::ResponseMessageImpl(Http::ResponseHeaderMapPtr{
+                    new Http::TestResponseHeaderMapImpl{{":status", "503"}}}));
+            // Simulate code path for "no healthy host for HTTP connection pool" inline callback.
+            cb.onSuccess(request, std::move(response));
+            return nullptr;
+          }));
+
+  EXPECT_CALL(filter(), log_(spdlog::level::info, Eq("async_call rejected")));
+  EXPECT_EQ(Http::FilterHeadersStatus::StopAllIterationAndWatermark,
+            filter().decodeHeaders(request_headers, false));
 }
 
 TEST_P(WasmHttpFilterTest, AsyncCallFailure) {

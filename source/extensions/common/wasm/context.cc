@@ -666,19 +666,22 @@ Http::HeaderMap* Context::getMap(WasmHeaderMapType type) {
 const Http::HeaderMap* Context::getConstMap(WasmHeaderMapType type) {
   switch (type) {
   case WasmHeaderMapType::RequestHeaders:
-    if (access_log_request_headers_) {
+    if (access_log_phase_) {
       return access_log_request_headers_;
     }
     return request_headers_;
   case WasmHeaderMapType::RequestTrailers:
+    if (access_log_phase_) {
+      return nullptr;
+    }
     return request_trailers_;
   case WasmHeaderMapType::ResponseHeaders:
-    if (access_log_response_headers_) {
+    if (access_log_phase_) {
       return access_log_response_headers_;
     }
     return response_headers_;
   case WasmHeaderMapType::ResponseTrailers:
-    if (access_log_response_trailers_) {
+    if (access_log_phase_) {
       return access_log_response_trailers_;
     }
     return response_trailers_;
@@ -722,6 +725,16 @@ WasmResult Context::getHeaderMapValue(WasmHeaderMapType type, absl::string_view 
                                       absl::string_view* value) {
   auto map = getConstMap(type);
   if (!map) {
+    if (access_log_phase_) {
+      // Maps might point to nullptr in the access log phase.
+      if (wasm()->abiVersion() == proxy_wasm::AbiVersion::ProxyWasm_0_1_0) {
+        *value = "";
+        return WasmResult::Ok;
+      } else {
+        return WasmResult::NotFound;
+      }
+    }
+    // Requested map type is not currently available.
     return WasmResult::BadArgument;
   }
   const Http::LowerCaseString lower_key{std::string(key)};
@@ -938,6 +951,8 @@ WasmResult Context::httpCall(absl::string_view cluster, const Pairs& request_hea
 
   uint32_t token = nextHttpCallToken();
   auto& handler = http_request_[token];
+  handler.context_ = this;
+  handler.token_ = token;
 
   // set default hash policy to be based on :authority to enable consistent hash
   Http::AsyncClient::RequestOptions options;
@@ -951,8 +966,6 @@ WasmResult Context::httpCall(absl::string_view cluster, const Pairs& request_hea
     http_request_.erase(token);
     return WasmResult::InternalFailure;
   }
-  handler.context_ = this;
-  handler.token_ = token;
   handler.request_ = http_request;
   *token_ptr = token;
   return WasmResult::Ok;
@@ -1479,6 +1492,7 @@ void Context::log(const Http::RequestHeaderMap* request_headers,
     onCreate();
   }
 
+  access_log_phase_ = true;
   access_log_request_headers_ = request_headers;
   // ? request_trailers  ?
   access_log_response_headers_ = response_headers;
@@ -1487,6 +1501,7 @@ void Context::log(const Http::RequestHeaderMap* request_headers,
 
   onLog();
 
+  access_log_phase_ = false;
   access_log_request_headers_ = nullptr;
   // ? request_trailers  ?
   access_log_response_headers_ = nullptr;
@@ -1737,12 +1752,16 @@ void Context::onHttpCallSuccess(uint32_t token, Envoy::Http::ResponseMessagePtr&
     });
     return;
   }
+  auto handler = http_request_.find(token);
+  if (handler == http_request_.end()) {
+    return;
+  }
   http_call_response_ = &response;
   uint32_t body_size = response->body().length();
   onHttpCallResponse(token, response->headers().size(), body_size,
                      headerSize(response->trailers()));
   http_call_response_ = nullptr;
-  http_request_.erase(token);
+  http_request_.erase(handler);
 }
 
 void Context::onHttpCallFailure(uint32_t token, Http::AsyncClient::FailureReason reason) {
@@ -1751,13 +1770,17 @@ void Context::onHttpCallFailure(uint32_t token, Http::AsyncClient::FailureReason
     wasm()->addAfterVmCallAction([this, token, reason] { onHttpCallFailure(token, reason); });
     return;
   }
+  auto handler = http_request_.find(token);
+  if (handler == http_request_.end()) {
+    return;
+  }
   status_code_ = static_cast<uint32_t>(WasmResult::BrokenConnection);
   // This is the only value currently.
   ASSERT(reason == Http::AsyncClient::FailureReason::Reset);
   status_message_ = "reset";
   onHttpCallResponse(token, 0, 0, 0);
   status_message_ = "";
-  http_request_.erase(token);
+  http_request_.erase(handler);
 }
 
 void Context::onGrpcReceiveWrapper(uint32_t token, ::Envoy::Buffer::InstancePtr response) {

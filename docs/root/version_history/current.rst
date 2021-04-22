@@ -1,5 +1,7 @@
 1.17.1 (February 25, 2021)
 ==========================
+1.17.2 (April 15, 2021)
+=======================
 
 Incompatible Behavior Changes
 -----------------------------
@@ -15,6 +17,10 @@ Bug Fixes
 
 * jwt_authn: reject requests with a proper error if JWT has the wrong issuer when allow_missing is used. Before this change, the requests are accepted.
 * overload: fix a bug that can cause use-after-free when one scaled timer disables another one with the same duration.
+* http: fixed a crash upon receiving empty HTTP/2 metadata frames. Received empty metadata frames are now counted in the HTTP/2 codec stat :ref:`metadata_empty_frames <config_http_conn_man_stats_per_codec>`.
+* http: fixed a remotely exploitable integer overflow via a very large grpc-timeout value causes undefined behavior.
+* http: reverting a behavioral change where upstream connect timeouts were temporarily treated differently from other connection failures. The change back to the original behavior can be temporarily reverted by setting `envoy.reloadable_features.treat_upstream_connect_timeout_as_connect_failure` to false.
+* tls: fix a crash when peer sends a TLS Alert with an unknown code.
 
 Removed Config or Runtime
 -------------------------
@@ -22,6 +28,7 @@ Removed Config or Runtime
 
 New Features
 ------------
+* dispatcher: supports a stack of `Envoy::ScopeTrackedObject` instead of a single tracked object. This will allow Envoy to dump more debug information on crash.
 
 Deprecated
 ----------
