@@ -51,7 +51,7 @@ void GrpcMuxImpl::sendDiscoveryRequest(const std::string& type_url) {
   if (skip_subsequent_node_) {
     if (first_stream_request_) {
       // Node may have been cleared during a previous request.
-      request.mutable_node()->MergeFrom(local_info_.node());
+      request.mutable_node()->CopyFrom(local_info_.node());
     } else {
       request.clear_node();
     }
