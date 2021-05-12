@@ -63,11 +63,17 @@ public:
                                     const RequestIDExtensionSharedPtr& rid_extension,
                                     const std::string& via);
 
-  // Sanitize the path in the header map if forced by config.
+  enum class NormalizePathAction {
+    Continue = 0,
+    Reject = 1,
+    Redirect = 2,
+  };
+
+  // Sanitize the path in the header map if the path exists and it is forced by config.
   // Side affect: the string view of Path header is invalidated.
-  // Return false if error happens during the sanitization.
-  static bool maybeNormalizePath(RequestHeaderMap& request_headers,
-                                 const ConnectionManagerConfig& config);
+  // Returns the action that should taken based on the results of path normalization.
+  static NormalizePathAction maybeNormalizePath(RequestHeaderMap& request_headers,
+                                                const ConnectionManagerConfig& config);
 
   /**
    * Mutate request headers if request needs to be traced.
